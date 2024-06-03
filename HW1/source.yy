@@ -1,10 +1,10 @@
-% {
+
 #include "tokens.hpp"
 #include <stdio.h>
 #include <iostream>
 
 void showToken(char*);
-% }
+
 
 %option noyywrap
 
