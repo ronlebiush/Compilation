@@ -1,7 +1,6 @@
 
 #include "tokens.hpp"
 #include <stdio.h>
-#include <iostream>
 
 void showToken(char*);
 
@@ -18,5 +17,5 @@ digit ([0-9])
 %%
 
 void showToken(char* name){
-    std::cout << yylineno << name << yytext << std::endl;
+    print("hello\n");
 }
