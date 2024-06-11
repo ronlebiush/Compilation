@@ -33,7 +33,7 @@ binop           ((\+)|(\-)|(\*)|(\/))
 "byte"                      return BYTE;
 "int"                       return INT;
 {digit}+          			return NUM;
-{letter}+({letter}|{digit})*					return ID;
+{letter}+({letter}|{digit})*		return ID;
 {whitespace}				;
 <STRINGSTART>[a-zA-Z0-9\\]    return STRING;   
 <STRINGSTART>["]            BEGIN(INITIAL);
