@@ -1,10 +1,23 @@
 #include <stdio.h>
 #include "tokens.hpp"
+#include <iostream>
+
+using namespace std;
+
 extern int yylex();
+char textbuff[1024];
+char* textbuffptr = textbuff;
 
 void showToken(const char * name)
 {
-        printf("%d %s %s\n", yylineno, name, yytext);
+	if(name == "STRING"){
+		cout << yylineno << " " << name << " " << textbuff << endl;
+		textbuffptr = textbuff;
+	} else if (name=="COMMENT"){
+		cout << yylineno << " " << name << " " << "//" << endl;
+	}
+    
+	else printf("%d %s %s\n", yylineno, name, yytext);
 }
 
 int main(){
@@ -46,8 +59,6 @@ int main(){
 			showToken("CONTINUE");
 		} else if (token == SC) {
 			showToken("SC");
-		} else if (token == COMMA) {
-			showToken("COMMA");
 		} else if (token == LPAREN) {
 			showToken("LPAREN");
 		} else if (token == RPAREN) {
@@ -68,12 +79,6 @@ int main(){
 			showToken("NUM");
 		} else if (token == STRING) {
 			showToken("STRING");
-		} else if (token == OVERRIDE) {
-			showToken("OVERRIDE");
-		} else if (token == UNKNOWN) {
-			showToken("UNKNOWN");
-		} else if (token == UNCLOSED) {
-			showToken("UNCLOSED");
 		}
 	}
 	return 0;

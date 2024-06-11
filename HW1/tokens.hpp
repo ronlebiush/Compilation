@@ -28,10 +28,16 @@
     COMMENT = 25,
     ID = 26,
     NUM = 27,
-    STRING = 28
+    STRING = 28,
+    OVERRIDE = 39,
+    UNKNOWN = 30,
+    UNCLOSED = 31,
+    COMMA = 32
   };
   extern int yylineno;
   extern char* yytext;
   extern int yyleng;
   extern int yylex();
+  extern char textbuff[1024];
+  extern char* textbuffptr;
 #endif /* TOKENS_HPP_ */
