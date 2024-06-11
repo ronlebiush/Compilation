@@ -13,7 +13,8 @@ letter  		([a-zA-Z])
 whitespace		([\t\n ])
 ignoredEscapeSeq       ([\r\\\"\n\t\0])
 string          (["])
-
+relop           ((==)|(!=)|(\<=)|(\>=)|(\<)|(\>))
+binop           ((\+)|(\-)|(\*)|(\/))
 %x STRINGSTART
 %%
 
@@ -31,7 +32,7 @@ string          (["])
 "byte"                      return BYTE;
 "int"                       return INT;
 {digit}+          			return NUM;
-{letter}+					return ID;
+{letter}+({letter}|{digit})*					return ID;
 {whitespace}				;
 <STRINGSTART>[a-zA-Z0-9\\]    return STRING;   
 <STRINGSTART>["]            BEGIN(INITIAL);
