@@ -15,6 +15,7 @@ ignoredEscapeSeq       ([\r\\\"\n\t\0])
 string          (["])
 relop           ((==)|(!=)|(\<=)|(\>=)|(\<)|(\>))
 binop           ((\+)|(\-)|(\*)|(\/))
+
 %x STRINGSTART
 %%
 
