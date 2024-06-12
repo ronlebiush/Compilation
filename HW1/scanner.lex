@@ -66,9 +66,8 @@ comment \/\/[^\n\r]*
 <ESCAPESEQ>\"               *textbuffptr = '\"'; textbuffptr++; BEGIN(STR);
 <ESCAPESEQ>{backslash}      *textbuffptr = '\\'; textbuffptr++; BEGIN(STR);
 <ESCAPESEQ>"0"              *textbuffptr = '\0'; textbuffptr++; BEGIN(STR);
-<ESCAPESEQ>x[0-9A-Za-z][0-9A-Za-z]   *textbuffptr = handleAscii(yytext[1], yytext[2]) ; textbuffptr++; BEGIN(STR);
-<ESCAPESEQ>x..              printf("Error undefined escape sequence %c%c\n", yytext[0], yytext[1]); exit(0);
-<ESCAPESEQ>x.               printf("Error undefined escape sequence %c%c\n", yytext[0], yytext[1]); exit(0);
+<ESCAPESEQ>x..   *textbuffptr = handleAscii(yytext[1], yytext[2]) ; textbuffptr++; BEGIN(STR);
+<ESCAPESEQ>x.               printf("Error undefined escape sequence %c\n", yytext[0]); exit(0);
 <ESCAPESEQ>.                printf("Error undefined escape sequence %s\n", yytext); exit(0);
 
 
@@ -106,7 +105,7 @@ char handleAscii(char first, char sec)
     } else {
         if (first == '\0')
             printf("Error undefined escape sequence x\n");
-        else if (sec == '\0')
+        else if (sec == '\0' || sec == '"')
             printf("Error undefined escape sequence x%c\n", first);
         else
             printf("Error undefined escape sequence x%c%c\n", first, sec);
