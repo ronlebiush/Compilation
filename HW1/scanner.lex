@@ -72,6 +72,7 @@ comment \/\/[^\n\r]*
 
 
 <STR>(\x0A|\x0D)            printf("Error unclosed string\n"); exit(0);
+<STR><<EOF>>                printf("Error unclosed string\n"); exit(0);
 
 <STR>{printableascii}       *textbuffptr =  *yytext ; textbuffptr++;
 <STR>["]                    {

@@ -28,11 +28,7 @@
     COMMENT = 25,
     ID = 26,
     NUM = 27,
-    STRING = 28,
-    OVERRIDE = 39,
-    UNKNOWN = 30,
-    UNCLOSED = 31,
-    COMMA = 32
+    STRING = 28
   };
   extern int yylineno;
   extern char* yytext;
