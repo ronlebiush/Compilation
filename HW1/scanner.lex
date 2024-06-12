@@ -12,8 +12,9 @@ char handleAscii(char first, char sec);
 %option yylineno
 %option noyywrap
 digit   		([0-9])
+nonzero         ([1-9])
 letter  		([a-zA-Z])
-whitespace		([\t\n ])
+whitespace		([\t\n\r ])
 string          (["])
 relop           ((==)|(!=)|(\<=)|(\>=)|(\<)|(\>))
 binop           ((\+)|(\-)|(\*)|(\/))
@@ -52,7 +53,8 @@ comment \/\/[^\n\r]*
 {binop}                     return BINOP;
 {comment}                   return COMMENT;
 {letter}+({letter}|{digit})*		return ID;
-{digit}+          			return NUM;
+"0"                         return NUM;
+{nonzero}{digit}*          	return NUM;
 {whitespace}				;
 
 
@@ -61,10 +63,14 @@ comment \/\/[^\n\r]*
 <ESCAPESEQ>"n"              *textbuffptr = '\n'; textbuffptr++; BEGIN(STR);
 <ESCAPESEQ>"r"              *textbuffptr = '\r'; textbuffptr++; BEGIN(STR);
 <ESCAPESEQ>"t"              *textbuffptr = '\t'; textbuffptr++; BEGIN(STR);
+<ESCAPESEQ>\"               *textbuffptr = '\"'; textbuffptr++; BEGIN(STR);
 <ESCAPESEQ>{backslash}      *textbuffptr = '\\'; textbuffptr++; BEGIN(STR);
 <ESCAPESEQ>"0"              *textbuffptr = '\0'; textbuffptr++; BEGIN(STR);
 <ESCAPESEQ>x[0-9A-Za-z][0-9A-Za-z]   *textbuffptr = handleAscii(yytext[1], yytext[2]) ; textbuffptr++; BEGIN(STR);
+<ESCAPESEQ>x..              printf("Error undefined escape sequence %c%c\n", yytext[0], yytext[1]); exit(0);
+<ESCAPESEQ>x.               printf("Error undefined escape sequence %c%c\n", yytext[0], yytext[1]); exit(0);
 <ESCAPESEQ>.                printf("Error undefined escape sequence %s\n", yytext); exit(0);
+
 
 <STR>(\x0A|\x0D)            printf("Error unclosed string\n"); exit(0);
 
