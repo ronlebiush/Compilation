@@ -14,6 +14,7 @@
 %nonassoc BOOL;
 %left AND;
 %left OR;
+%nonassoc NOT;
 %nonassoc TRUE;
 %nonassoc FALSE;
 %nonassoc RETURN;
@@ -37,11 +38,102 @@
 
 %%
 
-program:    statements;
-statements: statement;
-statements: statements statement;
-statement:  type ID SC;
-type:       INT;
+program:    statements 
+            {output::printProductionRule(1);};
+
+statements: statement 
+            {output::printProductionRule(2);};
+
+statements: statements statement 
+            {output::printProductionRule(3);};
+
+statement:  LBRACE statements RBRACE 
+            {output::printProductionRule(4);};
+
+statement:  type ID SC 
+            {output::printProductionRule(5);};
+
+statement:  type ID ASSIGN exp SC 
+            {output::printProductionRule(6);};
+
+statement:  ID ASSIGN exp SC
+            {output::printProductionRule(7);};
+
+statement:  call SC 
+            {output::printProductionRule(8);};
+
+statement:  RETURN SC 
+            {output::printProductionRule(9);};
+
+statement:  IF LPAREN exp RPAREN statement
+            {output::printProductionRule(10);};
+
+statement:  IF LPAREN exp RPAREN statement ELSE statement 
+            {output::printProductionRule(11);};
+
+statement:  WHILE LPAREN exp RPAREN statement 
+            {output::printProductionRule(12);};
+
+statement:  BREAK SC 
+            {output::printProductionRule(13);};
+
+statement:  CONTINUE SC 
+            {output::printProductionRule(14);};
+
+call:       ID LPAREN exp RPAREN 
+            {output::printProductionRule(15);};
+
+type:       INT 
+            {output::printProductionRule(16);};
+
+type:       BYTE 
+            {output::printProductionRule(17);};
+
+type:       BOOL 
+            {output::printProductionRule(18);};
+
+exp:        LPAREN exp RPAREN 
+            {output::printProductionRule(19);};
+
+exp:        exp BINOP exp 
+            {output::printProductionRule(20);};
+
+exp:        ID
+            {output::printProductionRule(21);}
+
+exp:        call
+            {output::printProductionRule(22);}
+
+exp:        NUM
+            {output::printProductionRule(23);}
+
+exp:        NUM B
+            {output::printProductionRule(24);}
+
+exp:        STRING
+            {output::printProductionRule(25);}
+
+exp :       TRUE
+            {output::printProductionRule(26);};
+
+exp:        FALSE
+            {output::printProductionRule(27);}
+
+exp:        NOT exp
+            {output::printProductionRule(28);}
+
+exp:        exp AND exp
+            {output::printProductionRule(29);}
+
+exp:        exp OR exp
+            {output::printProductionRule(30);}
+
+exp:        exp RELOP exp
+            {output::printProductionRule(31);}
+
+exp:        LPAREN type RPAREN exp
+            {output::printProductionRule(32);}
+
 
 %%
 
@@ -49,7 +141,7 @@ int main() {
     return yyparse(); 
 } 
 
-int yyerror(char* s)
+int yyerror(const char* s)
 {
     printf("Parse error: %s! Bye now\n");
     exit(1);
