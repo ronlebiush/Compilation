@@ -1,0 +1,102 @@
+%{
+
+/* Declarations section */
+#include <stdio.h>
+#include "parser.tab.hpp"
+#include "output.hpp"
+
+char handleAscii(char first, char sec);
+
+extern int yylineno;
+extern char* yytext;
+extern int yyleng;
+extern int yylex();
+extern char textbuff[1024];
+extern char* textbuffptr;
+
+
+%}
+
+%option yylineno
+%option noyywrap
+digit   		([0-9])
+nonzero         ([1-9])
+letter  		([a-zA-Z])
+whitespace		([\t\n\r ])
+string          (["])
+relop           ((==)|(!=)|(\<=)|(\>=)|(\<)|(\>))
+binop           ((\+)|(\-)|(\*)|(\/))
+backslash       \x5C
+printableascii  ([\x20-\x21\x23-\x5B\x5D-\x7E])
+comment \/\/[^\n\r]*
+
+%x STRINGS
+%x ESCAPESEQ
+%x ASCII
+%%
+
+"int"                       return INT;
+"byte"                      return BYTE;
+"b"                         return B;
+"bool"                      return BOOL;
+"and"                       return AND;
+"or"                        return OR;
+"true"                      return TRUE;
+"false"                     return FALSE;
+"return"                    return RETURN;
+"if"                        return IF;
+"else"                      return ELSE;
+"while"                     return WHILE;
+"break"                     return BREAK;
+"continue"                  return CONTINUE;
+";"                         return SC;
+"("                         return LPAREN;
+")"                         return RPAREN;
+"{"                         return LBRACE;
+"}"                         return RBRACE;
+"="                         return ASSIGN;
+{relop}                     return RELOP;
+{binop}                     return BINOP;
+{letter}+({letter}|{digit})*		return ID;
+"0"                         return NUM;
+{nonzero}{digit}*          	return NUM;
+(\")                        BEGIN(STRINGS);
+<STRINGS><<EOF>>            {output::errorLex(yylineno); exit(0);};
+<STRINGS>([\x00-\x09\x0b-\x0c\x0e-\x21\x23-\x5b\x5d-\x7f]|((\\)(\\))|((\\)(\"))|((\\)(n))|((\\)(r)))*(\") {BEGIN(INITIAL);return STRING;}
+<STRINGS>([^(\")])*((\")?)  {output::errorLex(yylineno); exit(0);};
+{whitespace}				;
+
+
+
+%%
+
+char handleAscii(char first, char sec)
+{
+    //printf("the chars are: %c%c%c\n", yytext[0], yytext[1], yytext[2]);
+    //printf("%c %c \n",first,sec);
+
+    char hex_str[3]; // array to store the hex string
+    char *end_ptr;   // pointer to track the end of the parsed string
+    
+    // Form the hex string from the characters
+    hex_str[0] = first;
+    hex_str[1] = sec;
+    hex_str[2] = '\0';
+
+    // Convert hex string to integer
+    int current_hex = strtol(hex_str, &end_ptr, 16);
+
+    // Check for valid hex conversion and ASCII range
+    if (*end_ptr == '\0' && current_hex >= 0x00 && current_hex <= 0x7F) {
+        return (char)current_hex;
+    } else {
+        if (first == '\0')
+            printf("Error undefined escape sequence x\n");
+        else if (sec == '\0' || sec == '"')
+            printf("Error undefined escape sequence x%c\n", first);
+        else
+            printf("Error undefined escape sequence x%c%c\n", first, sec);
+        
+        exit(EXIT_FAILURE);
+    }
+}
