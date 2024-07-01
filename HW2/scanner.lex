@@ -24,8 +24,10 @@ nonzero         ([1-9])
 letter  		([a-zA-Z])
 whitespace		([\t\n\r ])
 string          (["])
-relop           ((==)|(!=)|(\<=)|(\>=)|(\<)|(\>))
-binop           ((\+)|(\-)|(\*)|(\/))
+relational      ((\<=)|(\>=)|(\<)|(\>))
+equal           ((==)|(!=))
+binop           ((\+)|(\-))
+mult            ((\*)|(\/))
 backslash       \x5C
 printableascii  ([\x20-\x21\x23-\x5B\x5D-\x7E])
 comment \/\/[^\n\r]*
@@ -35,6 +37,7 @@ comment \/\/[^\n\r]*
 %x ASCII
 %%
 
+{whitespace}				;
 "int"                       return INT;
 "byte"                      return BYTE;
 "b"                         return B;
@@ -56,17 +59,15 @@ comment \/\/[^\n\r]*
 "{"                         return LBRACE;
 "}"                         return RBRACE;
 "="                         return ASSIGN;
-{relop}                     return RELOP;
+{relational}                return RELATIONAL;
+{equal}                     return EQUAL;
 {binop}                     return BINOP;
+{mult}                      return MULT;
 {letter}+({letter}|{digit})*		return ID;
 "0"                         return NUM;
 {nonzero}{digit}*          	return NUM;
-(\")                        BEGIN(STRINGS);
-<STRINGS><<EOF>>            {output::errorLex(yylineno); exit(0);};
-<STRINGS>([\x00-\x09\x0b-\x0c\x0e-\x21\x23-\x5b\x5d-\x7f]|((\\)(\\))|((\\)(\"))|((\\)(n))|((\\)(r)))*(\") {BEGIN(INITIAL);return STRING;}
-<STRINGS>([^(\")])*((\")?)  {output::errorLex(yylineno); exit(0);};
-{whitespace}				;
-.                           {output::errorLex(yylineno); exit(0);};
-
+{comment}                   ;
+(\"([^\n\r\"\\]|\\[rnt"\\])+\")     return STRING;
+.                                   {output::errorLex(yylineno); exit(0);};
 
 %%

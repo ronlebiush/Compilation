@@ -26,15 +26,18 @@
 %nonassoc ID;
 %nonassoc NUM;
 %nonassoc STRING;
+%nonassoc COMMENT;
 %right ASSIGN;
 %left OR;
 %left AND;
-%nonassoc RELOP;
-%right BINOP;
-%left RPAREN;
+%left EQUAL;
+%left RELATIONAL;
+%left BINOP;
+%left MULT;
 %right IF;
-%left LPAREN;
 %right NOT;
+%left RPAREN;
+%left LPAREN;
 %right ELSE;
 
 %%
@@ -98,6 +101,9 @@ exp:        LPAREN exp RPAREN
 
 exp:        exp BINOP exp 
             {output::printProductionRule(20);};
+            |
+            exp MULT exp
+            {output::printProductionRule(20);};
 
 exp:        ID
             {output::printProductionRule(21);}
@@ -129,7 +135,10 @@ exp:        exp AND exp
 exp:        exp OR exp
             {output::printProductionRule(30);}
 
-exp:        exp RELOP exp
+exp:        exp RELATIONAL exp
+            {output::printProductionRule(31);}
+            |
+            exp EQUAL exp
             {output::printProductionRule(31);}
 
 exp:        LPAREN type RPAREN exp
