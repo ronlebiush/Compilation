@@ -1,0 +1,163 @@
+%{
+    #include <iostream>
+    #include <stdlib.h>
+    using namespace std;
+    #include "output.hpp"
+    #include "source.h"
+
+    extern int yylex();
+    extern int yylineno;
+    int yyerror(const char* message);
+%}
+
+%nonassoc INT;
+%nonassoc BYTE;
+%nonassoc B;
+%nonassoc BOOL;
+%nonassoc TRUE;
+%nonassoc FALSE;
+%nonassoc RETURN;
+%nonassoc WHILE;
+%nonassoc BREAK;
+%nonassoc CONTINUE;
+%nonassoc SC;
+%nonassoc COMMA;
+%nonassoc LBRACE;
+%nonassoc RBRACE;
+%nonassoc ID;
+%nonassoc NUM;
+%nonassoc STRING;
+%nonassoc COMMENT;
+%right ASSIGN;
+%left OR;
+%left AND;
+%left EQUAL;
+%left RELATIONAL;
+%left BINOP;
+%left MULT;
+%right IF;
+%right NOT;
+%left RPAREN;
+%left LPAREN;
+%right ELSE;
+
+%%
+
+program:    statements 
+            {output::printProductionRule(1);};
+
+statements: statement 
+            {};
+
+statements: statements statement 
+            {output::printProductionRule(3);};
+
+statement:  LBRACE openScopeMarker statements RBRACE 
+            {symTable.tableStack.pop();};
+
+openScopeMarker:          %empty
+                        {symTable.addTable;};
+
+statement:  type ID SC 
+            {output::printProductionRule(5);};
+
+statement:  type ID ASSIGN exp SC 
+            {output::printProductionRule(6);};
+
+statement:  ID ASSIGN exp SC
+            {output::printProductionRule(7);};
+
+statement:  call SC 
+            {output::printProductionRule(8);};
+
+statement:  RETURN SC 
+            {output::printProductionRule(9);};
+
+statement:  IF LPAREN exp RPAREN statement
+            {output::printProductionRule(10);};
+
+statement:  IF LPAREN exp RPAREN statement ELSE statement 
+            {output::printProductionRule(11);};
+
+statement:  WHILE LPAREN exp RPAREN statement 
+            {output::printProductionRule(12);};
+
+statement:  BREAK SC 
+            {output::printProductionRule(13);};
+
+statement:  CONTINUE SC 
+            {output::printProductionRule(14);};
+
+call:       ID LPAREN exp RPAREN 
+            {output::printProductionRule(15);};
+
+type:       INT 
+            {output::printProductionRule(16);};
+
+type:       BYTE 
+            {output::printProductionRule(17);};
+
+type:       BOOL 
+            {output::printProductionRule(18);};
+
+exp:        LPAREN exp RPAREN 
+            {output::printProductionRule(19);};
+
+exp:        exp BINOP exp 
+            {output::printProductionRule(20);};
+            |
+            exp MULT exp
+            {output::printProductionRule(20);};
+
+exp:        ID
+            {output::printProductionRule(21);}
+
+exp:        call
+            {output::printProductionRule(22);}
+
+exp:        NUM
+            {output::printProductionRule(23);}
+
+exp:        NUM B
+            {output::printProductionRule(24);}
+
+exp:        STRING
+            {output::printProductionRule(25);}
+
+exp :       TRUE
+            {output::printProductionRule(26);};
+
+exp:        FALSE
+            {output::printProductionRule(27);}
+
+exp:        NOT exp
+            {output::printProductionRule(28);}
+
+exp:        exp AND exp
+            {output::printProductionRule(29);}
+
+exp:        exp OR exp
+            {output::printProductionRule(30);}
+
+exp:        exp RELATIONAL exp
+            {output::printProductionRule(31);}
+            |
+            exp EQUAL exp
+            {output::printProductionRule(31);}
+
+exp:        LPAREN type RPAREN exp
+            {output::printProductionRule(32);}
+
+
+%%
+
+int main() {
+    return yyparse(); 
+} 
+
+int yyerror(const char* s)
+{
+    output::errorSyn(yylineno);
+    exit(1);
+    return 0;
+}
