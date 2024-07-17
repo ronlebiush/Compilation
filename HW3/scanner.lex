@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "parser.tab.hpp"
 #include "output.hpp"
+#include "source.hpp"
 
 char handleAscii(char first, char sec);
 
@@ -63,7 +64,7 @@ comment \/\/[^\n\r]*
 {equal}                     return EQUAL;
 {binop}                     return BINOP;
 {mult}                      return MULT;
-{letter}+({letter}|{digit})*		return ID;
+{letter}+({letter}|{digit})*		{yylval = new Node(yytext); return ID;}
 "0"                         return NUM;
 {nonzero}{digit}*          	return NUM;
 {comment}                   ;

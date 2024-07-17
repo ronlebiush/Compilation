@@ -3,12 +3,25 @@
     #include <stdlib.h>
     using namespace std;
     #include "output.hpp"
-    #include "source.h"
+    #include "source.hpp"
 
     extern int yylex();
     extern int yylineno;
     int yyerror(const char* message);
+    Symtab symtable;
 %}
+
+%union {
+    int intval;
+    double floatval;
+    char* strval;
+    Node* nodeval;
+}
+
+
+
+
+
 
 %nonassoc INT;
 %nonassoc BYTE;
@@ -53,13 +66,26 @@ statements: statements statement
             {output::printProductionRule(3);};
 
 statement:  LBRACE openScopeMarker statements RBRACE 
-            {symTable.tableStack.pop();};
+            {
+                if(!symtable.tableStack.empty()){
+                symtable.printSymtab(symtable.tableStack.top());
+                symtable.tableStack.pop();
+                }
+                output::printProductionRule(4);
+            }
 
 openScopeMarker:          %empty
-                        {symTable.addTable;};
+                        {
+                            if(symtable.tableStack.empty()){
+                                symtable.addTable(symtable.root);
+                            } 
+                            else {
+                                symtable.printSymtab(symtable.addTable(symtable.tableStack.top()));
+                                }
+                            };
 
 statement:  type ID SC 
-            {output::printProductionRule(5);};
+            {symtable.tableStack.top()->addEntry($2->typeString, $1, 0);};
 
 statement:  type ID ASSIGN exp SC 
             {output::printProductionRule(6);};
@@ -92,7 +118,7 @@ call:       ID LPAREN exp RPAREN
             {output::printProductionRule(15);};
 
 type:       INT 
-            {output::printProductionRule(16);};
+            {$$ = new Num("int");};
 
 type:       BYTE 
             {output::printProductionRule(17);};
