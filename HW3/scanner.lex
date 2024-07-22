@@ -2,9 +2,9 @@
 
 /* Declarations section */
 #include <stdio.h>
+#include "source.hpp"
 #include "parser.tab.hpp"
 #include "output.hpp"
-#include "source.hpp"
 
 char handleAscii(char first, char sec);
 
@@ -39,10 +39,10 @@ comment \/\/[^\n\r]*
 %%
 
 {whitespace}				;
-"int"                       return INT;
-"byte"                      return BYTE;
+"int"                       {yylval = new TypeNode("int"); return INT;}
+"byte"                      {yylval = new TypeNode("byte");return BYTE;}
 "b"                         return B;
-"bool"                      return BOOL;
+"bool"                      {yylval = new TypeNode("bool");return BOOL;}
 "and"                       return AND;
 "or"                        return OR;
 "not"                       return NOT;
@@ -64,9 +64,9 @@ comment \/\/[^\n\r]*
 {equal}                     return EQUAL;
 {binop}                     return BINOP;
 {mult}                      return MULT;
-{letter}+({letter}|{digit})*		{yylval = new Node(yytext); return ID;}
-"0"                         return NUM;
-{nonzero}{digit}*          	return NUM;
+{letter}+({letter}|{digit})*		{yylval = new IdNode(yytext); return ID;}
+"0"                         {yylval = new NumNode(yytext); return NUM;}
+{nonzero}{digit}*          	{yylval = new NumNode(yytext); return NUM;}
 {comment}                   ;
 (\"([^\n\r\"\\]|\\[rnt"\\])+\")     return STRING;
 .                                   {output::errorLex(yylineno); exit(0);};

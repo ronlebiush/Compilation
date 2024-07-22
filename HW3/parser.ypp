@@ -11,12 +11,7 @@
     Symtab symtable;
 %}
 
-%union {
-    int intval;
-    double floatval;
-    char* strval;
-    Node* nodeval;
-}
+
 
 
 
@@ -60,7 +55,7 @@ program:    statements
             {output::printProductionRule(1);};
 
 statements: statement 
-            {};
+            {output::printProductionRule(2);};
 
 statements: statements statement 
             {output::printProductionRule(3);};
@@ -77,7 +72,8 @@ statement:  LBRACE openScopeMarker statements RBRACE
 openScopeMarker:          %empty
                         {
                             if(symtable.tableStack.empty()){
-                                symtable.addTable(symtable.root);
+                                symtable.printSymtab(symtable.addTable(symtable.root));
+
                             } 
                             else {
                                 symtable.printSymtab(symtable.addTable(symtable.tableStack.top()));
@@ -85,10 +81,16 @@ openScopeMarker:          %empty
                             };
 
 statement:  type ID SC 
-            {symtable.tableStack.top()->addEntry($2->typeString, $1, 0);};
+            {symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), 0);};
 
 statement:  type ID ASSIGN exp SC 
-            {output::printProductionRule(6);};
+            {   
+                string type1 = $1->print_Node();
+                string type2 = $4->print_Node();
+                if(type1 != type2 && !(type1=="BYTE)){
+                cout << "bad types\n";
+                }
+                symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), 0);};
 
 statement:  ID ASSIGN exp SC
             {output::printProductionRule(7);};
@@ -99,7 +101,7 @@ statement:  call SC
 statement:  RETURN SC 
             {output::printProductionRule(9);};
 
-statement:  IF LPAREN exp RPAREN statement
+statement:  IF LPAREN exp RPAREN statement 
             {output::printProductionRule(10);};
 
 statement:  IF LPAREN exp RPAREN statement ELSE statement 
@@ -118,13 +120,13 @@ call:       ID LPAREN exp RPAREN
             {output::printProductionRule(15);};
 
 type:       INT 
-            {$$ = new Num("int");};
+            {$$ = new TypeNode("INT");};
 
 type:       BYTE 
-            {output::printProductionRule(17);};
+            {$$ = new TypeNode("BYTE");};
 
 type:       BOOL 
-            {output::printProductionRule(18);};
+            {$$ = new TypeNode("BOOL");};
 
 exp:        LPAREN exp RPAREN 
             {output::printProductionRule(19);};
@@ -142,7 +144,7 @@ exp:        call
             {output::printProductionRule(22);}
 
 exp:        NUM
-            {output::printProductionRule(23);}
+            {}
 
 exp:        NUM B
             {output::printProductionRule(24);}
@@ -160,7 +162,9 @@ exp:        NOT exp
             {output::printProductionRule(28);}
 
 exp:        exp AND exp
-            {output::printProductionRule(29);}
+            {
+                //$$ = new TypeNode("bool")
+                output::printProductionRule(29);}
 
 exp:        exp OR exp
             {output::printProductionRule(30);}

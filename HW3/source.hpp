@@ -13,10 +13,9 @@ using namespace std;
 class Node
 {
 public:
-    string typeString;
-    Node():typeString(""){};
-    Node(string type):typeString(type){};
+    Node(){};
     virtual ~Node()= default;
+    virtual string print_Node(){return "";};
 	
 };
 
@@ -29,14 +28,14 @@ class Symtab
         class Entry
         {
             public:
-            string name;
-            shared_ptr<Node> type;
             int offset;
-
-            Entry(string name, shared_ptr<Node> type, int offest) : name(name), type(type), offset(offset) {};
-            void printEntry()
+            string name;
+            string type;
+            
+            Entry(string name, string type, int offset) : name(name), type(type), offset(offset) {};
+            void printEntry() const
             {
-                cout << "name: " << this->name << "type: " << this->type->typeString << "offset: " << this->offset << "\n";
+                cout << "name: " << this->name << " type: " << this->type << " offset: " << this->offset << endl;
             };
         };
 
@@ -45,13 +44,13 @@ class Symtab
 
         Table(shared_ptr<Table> parent) : parent(parent), entries() {};
 
-        void addEntry(string name ,const shared_ptr<Node>& Type,int offset)
+        void addEntry(string name, string type, int offset)
         {
-            entries.push_back(Entry(name, Type, offset));
+            entries.push_back(Entry(name, type, offset));
         };
         void printTable(){
             for(auto i : entries){
-                cout << "entry num: " << i.offset;
+                cout << "entry num: " << i.offset << " ";
                 i.printEntry();
             }
         };
@@ -86,16 +85,35 @@ class Symtab
 
 };
 
-class Num : public Node {
+class TypeNode : public Node {
     public:
-    Num(string typeString) : Node(typeString) {};
-    
+    string typeString;
+    TypeNode(string typeString) : Node(),  typeString(typeString){};
+    string print_Node() override{
+        return typeString;
+    };
+
 };
 
-class Bool : public Node {
-    bool token;
-
+class NumNode : public Node {
+    public:
+    int num;
+    NumNode(char* num) : num(stoi(num)) {};
+    string print_Node() override{
+        return "INT";
+    };
 };
+
+class IdNode : public Node {
+    public:
+    string id;
+    IdNode(string id) : Node(),  id(id){};
+    string print_Node() override{
+        return id;
+    };
+};
+
+
 
 
 #define YYSTYPE Node*	// Tell Bison to use STYPE as the stack type
