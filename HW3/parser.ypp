@@ -15,6 +15,7 @@
         if(!symtable.tableStack.empty()){
                 symtable.printSymtab(symtable.tableStack.top());
                 symtable.tableStack.pop();
+                symtable.offsetsStack.pop();
         }
     }
 %}
@@ -86,26 +87,32 @@ openScopeMarker:          %empty
                             };
 
 statement:  type ID SC 
-            {symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), 0);
+            {symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), symtable.offsetsStack.top()++);
             output::printProductionRule(5);};
 
 statement:  type ID ASSIGN exp SC 
             {   
                 string type1 = $1->print_Node();
                 string type2 = $4->print_Node();
-                if(type1 != type2 && !(type1=="BYTE" && type2=="INT")){
-                cout << "bad types\n";
+                if((type1 != type2) && !(type1=="INT" && type2=="BYTE")){
+                    output::errorMismatch(yylineno);
+                    exit(1);
                 }
-                symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), 0);
+                
+                symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), symtable.offsetsStack.top()++);
                 output::printProductionRule(6);};
 
 statement:  ID ASSIGN exp SC
             {   
-                //string type1 = //search scope stack for id's type
-                //string type2 = $3->print_Node();
-                //if(type1 != type2 && !(type1=="BYTE" && type2=="INT")){
-                //cout << "bad types\n";
-                //}
+                Symtab::Table::Entry* entry = symtable.find($1->print_Node());
+                if(!entry){
+
+                }
+                string type1 = ((IdNode*)$1)->type;
+                string type2 = $3->print_Node();
+                if(type1 != type2 && !(type1=="BYTE" && type2=="INT")){
+                cout << "bad types\n";
+                }
                 
                 output::printProductionRule(7);};
 
@@ -140,16 +147,24 @@ call:       ID LPAREN exp RPAREN
             {output::printProductionRule(15);};
 
 type:       INT 
-            {$$ = $1;};
+            {
+                $$ = $1;
+                output::printProductionRule(16);};
 
 type:       BYTE 
-            {$$ = $1;};
+            {
+                $$ = $1;
+                output::printProductionRule(17);};
 
 type:       BOOL 
-            {$$ = $1;};
+            {
+                $$ = $1;
+                output::printProductionRule(18);};
 
 exp:        LPAREN exp RPAREN 
-            {output::printProductionRule(19);};
+            {
+                $$ = $2;
+                output::printProductionRule(19);};
 
 exp:        exp BINOP exp 
             {output::printProductionRule(20);};
@@ -158,55 +173,112 @@ exp:        exp BINOP exp
             {output::printProductionRule(20);};
 
 exp:        ID
-            {output::printProductionRule(21);}
+            {
+                Symtab::Table::Entry* entry = symtable.find($1->print_Node());
+                if(!entry){
+                    output::errorUndef(yylineno, $1->print_Node());
+                    exit(1);
+                }
+                
+                ((IdNode*)$1)->type = entry->type;
+
+                $$ = $1;
+                output::printProductionRule(21);}
 
 exp:        call
             {output::printProductionRule(22);}
 
 exp:        NUM
-            {}
+            {
+                $$ = $1;
+            }
 
 exp:        NUM B
-            {output::printProductionRule(24);}
+            {
+                if(((NumNode*)$1)->num > 255){
+                    output::errorByteTooLarge(yylineno, std::to_string(((NumNode*)$1)->num));
+                    exit(1);
+                }
+                
+                ((NumNode*)$1)->type = "BYTE";
+                $$ = $1;
+                output::printProductionRule(24);}
 
 exp:        STRING
-            {output::printProductionRule(25);}
+            {
+                $$ = $1;
+                output::printProductionRule(25);}
 
 exp :       TRUE
-            {output::printProductionRule(26);};
+            {
+                $$ = $1;
+                output::printProductionRule(26);};
 
 exp:        FALSE
-            {output::printProductionRule(27);}
+            {
+                $$ = $1;
+                output::printProductionRule(27);}
 
 exp:        NOT exp
             {
-                if($2->print_Node() != "BOOLEXP"){
+                if($2->print_Node() != "BOOL"){
                     output::errorMismatch(yylineno);
+                    exit(1);
                 }
-                Symtab::Table::Entry* entry = symtable.find($2->print_Node());
-                if(!entry){
-                    output::errorUndef($1->lineno, $2->print_Node());
-                }
+
                 $$ = $2;
                 output::printProductionRule(28);}
 
 exp:        exp AND exp
             {
-                //check for exp type in symtab
+                if($1->print_Node() != "BOOL" || $3->print_Node() != "BOOL"){
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
                 $$ = $2;
                 output::printProductionRule(29);}
 
 exp:        exp OR exp
-            {output::printProductionRule(30);}
+            {
+                if($1->print_Node() != "BOOL" || $3->print_Node() != "BOOL"){
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
+                $$ = $2;
+                output::printProductionRule(30);}
 
 exp:        exp RELATIONAL exp
-            {output::printProductionRule(31);}
+            {
+                if(($1->print_Node != "NUM") && ($1->print_Node() != "BYTE") || ($3->print_Node != "NUM") && ($3->print_Node() != "BYTE")){
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
+                $$ = new TypeNode(yylineno, "BOOL");
+                output::printProductionRule(31);}
             |
             exp EQUAL exp
-            {output::printProductionRule(31);}
+            {
+                if(($1->print_Node() != $3->print_Node()) || !($1->print_Node() == "NUM" && $3->print_Node() == "BYTE) || !($1->print_Node() == "BYTE" && $3->print_Node() == "NUM")) {
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
+                $$ = new TypeNode(yylineno, "BOOL");
+                output::printProductionRule(31);}
 
 exp:        LPAREN type RPAREN exp
-            {output::printProductionRule(32);}
+            {
+                if(($2->print_Node != "INT") && ($2->print_Node() != "BYTE") || ($4->print_Node != "NUM") && ($4->print_Node() != "BYTE")){
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
+                ((NumNode*)$4)->type = $2->print_Node();
+                $$ = $4;
+                output::printProductionRule(32);}
 
 
 %%

@@ -73,7 +73,8 @@ class Symtab
     shared_ptr<Table> addTable(shared_ptr<Table>& parent)
     {
         shared_ptr<Table> newTable = make_shared<Table>(parent);
-        curr_offset++;
+        //curr_offset++;
+        offsetsStack.push(offsetsStack.top());
         tableStack.push(newTable);
         return newTable;
     };
@@ -120,18 +121,20 @@ class TypeNode : public Node {
 class NumNode : public Node {
     public:
     int num;
+    string type = "INT";
     NumNode(int lineno, char* num) : Node(lineno), num(stoi(num)) {};
     string print_Node() override{
-        return "INT";
+        return type;
     };
 };
 
 class IdNode : public Node {
     public:
     string id;
+    string type;
     IdNode(int lineno, string id) : Node(lineno),  id(id){};
     string print_Node() override{
-        return id;
+        return type;
     };
 };
 
