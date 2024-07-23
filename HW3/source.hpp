@@ -7,13 +7,15 @@
 #include <vector>
 #include <memory>
 #include <iostream>
+#include "hw3_output.hpp"
 
 using namespace std;
 
 class Node
 {
 public:
-    Node(){};
+    int lineno;
+    Node(int lineno) : lineno(lineno) {};
     virtual ~Node()= default;
     virtual string print_Node(){return "";};
 	
@@ -40,20 +42,28 @@ class Symtab
         };
 
         shared_ptr<Table> parent;
-        vector<Entry> entries;
+        vector<Entry*> entries;
 
         Table(shared_ptr<Table> parent) : parent(parent), entries() {};
 
         void addEntry(string name, string type, int offset)
         {
-            entries.push_back(Entry(name, type, offset));
+            entries.push_back(new Entry(name, type, offset));
         };
         void printTable(){
             for(auto i : entries){
-                cout << "entry num: " << i.offset << " ";
-                i.printEntry();
+                cout << "entry num: " << i->offset << " ";
+                i->printEntry();
             }
         };
+
+        Entry* findEntry(string name){
+            for(auto i : entries){
+                if(i->name == name)
+                    return i;
+            }
+            return nullptr;
+        }
         
     }; 
     stack<shared_ptr<Table>> tableStack;
@@ -78,6 +88,18 @@ class Symtab
         }
         cout << "reached root\n";
     };
+
+    Table::Entry* find(string name){
+        shared_ptr<Table> curr = tableStack.top();
+        while(curr != nullptr){
+            Table::Entry* entry = curr->findEntry(name);
+            if(entry != nullptr)
+                return entry;
+        }
+        return nullptr;
+    }
+    
+    
     /*void iteratorPrint(){
         for(auto i:tableStack )
             (*i)->print();
@@ -88,7 +110,7 @@ class Symtab
 class TypeNode : public Node {
     public:
     string typeString;
-    TypeNode(string typeString) : Node(),  typeString(typeString){};
+    TypeNode(int lineno, string typeString) : Node(lineno),  typeString(typeString){};
     string print_Node() override{
         return typeString;
     };
@@ -98,7 +120,7 @@ class TypeNode : public Node {
 class NumNode : public Node {
     public:
     int num;
-    NumNode(char* num) : num(stoi(num)) {};
+    NumNode(int lineno, char* num) : Node(lineno), num(stoi(num)) {};
     string print_Node() override{
         return "INT";
     };
@@ -107,7 +129,7 @@ class NumNode : public Node {
 class IdNode : public Node {
     public:
     string id;
-    IdNode(string id) : Node(),  id(id){};
+    IdNode(int lineno, string id) : Node(lineno),  id(id){};
     string print_Node() override{
         return id;
     };

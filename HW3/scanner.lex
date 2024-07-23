@@ -5,6 +5,7 @@
 #include "source.hpp"
 #include "parser.tab.hpp"
 #include "output.hpp"
+#include "hw3_output.hpp"
 
 char handleAscii(char first, char sec);
 
@@ -39,34 +40,34 @@ comment \/\/[^\n\r]*
 %%
 
 {whitespace}				;
-"int"                       {yylval = new TypeNode("int"); return INT;}
-"byte"                      {yylval = new TypeNode("byte");return BYTE;}
-"b"                         return B;
-"bool"                      {yylval = new TypeNode("bool");return BOOL;}
-"and"                       return AND;
-"or"                        return OR;
-"not"                       return NOT;
-"true"                      return TRUE;
-"false"                     return FALSE;
-"return"                    return RETURN;
-"if"                        return IF;
-"else"                      return ELSE;
-"while"                     return WHILE;
-"break"                     return BREAK;
-"continue"                  return CONTINUE;
-";"                         return SC;
-"("                         return LPAREN;
-")"                         return RPAREN;
-"{"                         return LBRACE;
-"}"                         return RBRACE;
-"="                         return ASSIGN;
-{relational}                return RELATIONAL;
-{equal}                     return EQUAL;
-{binop}                     return BINOP;
-{mult}                      return MULT;
-{letter}+({letter}|{digit})*		{yylval = new IdNode(yytext); return ID;}
-"0"                         {yylval = new NumNode(yytext); return NUM;}
-{nonzero}{digit}*          	{yylval = new NumNode(yytext); return NUM;}
+"int"                       {yylval = new TypeNode(yylineno, "INT"); return INT;}
+"byte"                      {yylval = new TypeNode(yylineno, "BYTE");return BYTE;}
+"b"                         {yylval = new Node(yylineno); return B;}
+"bool"                      {yylval = new TypeNode(yylineno, "BOOL");return BOOL;}
+"and"                       {yylval = new TypeNode(yylineno, "BOOLEXP"); return AND;}
+"or"                        {yylval = new TypeNode(yylineno, "BOOLEXP"); return OR;}
+"not"                       {yylval = new TypeNode(yylineno, "BOOLEXP"); return NOT;}
+"true"                      {yylval = new TypeNode(yylineno, "BOOLEXP"); return TRUE;}
+"false"                     {yylval = new TypeNode(yylineno, "BOOLEXP"); return FALSE;}
+"return"                    {yylval = new Node(yylineno); return RETURN;}
+"if"                        {yylval = new Node(yylineno); return IF;}
+"else"                      {yylval = new Node(yylineno); return ELSE;}
+"while"                     {yylval = new Node(yylineno); return WHILE;}
+"break"                     {yylval = new Node(yylineno); return BREAK;}
+"continue"                  {yylval = new Node(yylineno); return CONTINUE;}
+";"                         {yylval = new Node(yylineno); return SC;}
+"("                         {yylval = new Node(yylineno); return LPAREN;}
+")"                         {yylval = new Node(yylineno); return RPAREN;}
+"{"                         {yylval = new Node(yylineno); return LBRACE;}
+"}"                         {yylval = new Node(yylineno); return RBRACE;}
+"="                         {yylval = new Node(yylineno); return ASSIGN;}
+{relational}                {yylval = new Node(yylineno); return RELATIONAL;}
+{equal}                     {yylval = new Node(yylineno); return EQUAL;}
+{binop}                     {yylval = new Node(yylineno); return BINOP;}
+{mult}                      {yylval = new Node(yylineno); return MULT;}
+{letter}+({letter}|{digit})*		{yylval = new IdNode(yylineno, yytext); return ID;}
+"0"                         {yylval = new NumNode(yylineno, yytext); return NUM;}
+{nonzero}{digit}*          	{yylval = new NumNode(yylineno, yytext); return NUM;}
 {comment}                   ;
 (\"([^\n\r\"\\]|\\[rnt"\\])+\")     return STRING;
 .                                   {output::errorLex(yylineno); exit(0);};
