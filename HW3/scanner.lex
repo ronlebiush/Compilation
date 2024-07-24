@@ -40,15 +40,15 @@ comment \/\/[^\n\r]*
 %%
 
 {whitespace}				;
-"int"                       {yylval = new TypeNode(yylineno, "INT"); return INT;}
-"byte"                      {yylval = new TypeNode(yylineno, "BYTE");return BYTE;}
+"int"                       {yylval = new TypeNode(yylineno, "int"); return INT;}
+"byte"                      {yylval = new TypeNode(yylineno, "byte");return BYTE;}
 "b"                         {yylval = new Node(yylineno); return B;}
-"bool"                      {yylval = new TypeNode(yylineno, "BOOL");return BOOL;}
-"and"                       {yylval = new TypeNode(yylineno, "BOOL"); return AND;}
-"or"                        {yylval = new TypeNode(yylineno, "BOOL"); return OR;}
-"not"                       {yylval = new TypeNode(yylineno, "BOOL"); return NOT;}
-"true"                      {yylval = new TypeNode(yylineno, "BOOL"); return TRUE;}
-"false"                     {yylval = new TypeNode(yylineno, "BOOL"); return FALSE;}
+"bool"                      {yylval = new TypeNode(yylineno, "bool");return BOOL;}
+"and"                       {yylval = new TypeNode(yylineno, "bool"); return AND;}
+"or"                        {yylval = new TypeNode(yylineno, "bool"); return OR;}
+"not"                       {yylval = new TypeNode(yylineno, "bool"); return NOT;}
+"true"                      {yylval = new TypeNode(yylineno, "bool"); return TRUE;}
+"false"                     {yylval = new TypeNode(yylineno, "bool"); return FALSE;}
 "return"                    {yylval = new Node(yylineno); return RETURN;}
 "if"                        {yylval = new Node(yylineno); return IF;}
 "else"                      {yylval = new Node(yylineno); return ELSE;}
@@ -69,7 +69,7 @@ comment \/\/[^\n\r]*
 "0"                         {yylval = new NumNode(yylineno, yytext); return NUM;}
 {nonzero}{digit}*          	{yylval = new NumNode(yylineno, yytext); return NUM;}
 {comment}                   ;
-(\"([^\n\r\"\\]|\\[rnt"\\])+\")     {yylval = new TypeNode(yylineno, "STRING"); return STRING;}
+(\"([^\n\r\"\\]|\\[rnt"\\])+\")     {yylval = new TypeNode(yylineno, "string"); return STRING;}
 .                                   {output::errorLex(yylineno); exit(0);};
 
 %%

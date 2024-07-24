@@ -78,8 +78,8 @@ statement:  LBRACE openScopeMarker statements RBRACE
 openScopeMarker:          %empty
                         {
                             if(symtable.tableStack.empty()){
+                                symtable.offsetsStack.push(0);
                                 symtable.printSymtab(symtable.addTable(symtable.root));
-
                             } 
                             else {
                                 symtable.printSymtab(symtable.addTable(symtable.tableStack.top()));
@@ -87,14 +87,27 @@ openScopeMarker:          %empty
                             };
 
 statement:  type ID SC 
-            {symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), symtable.offsetsStack.top()++);
-            output::printProductionRule(5);};
+            {
+                Symtab::Table::Entry* entry = symtable.find(((IdNode*)$2)->id);
+                if(entry){
+                    output::errorDef(yylineno, ((IdNode*)$2)->id);
+                    exit(1);
+                }
+
+                symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), symtable.offsetsStack.top()++);
+                output::printProductionRule(5);};
 
 statement:  type ID ASSIGN exp SC 
             {   
+                Symtab::Table::Entry* entry = symtable.find(((IdNode*)$2)->id);
+                if(entry){
+                    output::errorDef(yylineno, ((IdNode*)$2)->id);
+                    exit(1);
+                }
+
                 string type1 = $1->print_Node();
                 string type2 = $4->print_Node();
-                if((type1 != type2) && !(type1=="INT" && type2=="BYTE")){
+                if((type1 != type2) && !(type1=="int" && type2=="byte")){
                     output::errorMismatch(yylineno);
                     exit(1);
                 }
@@ -106,12 +119,15 @@ statement:  ID ASSIGN exp SC
             {   
                 Symtab::Table::Entry* entry = symtable.find($1->print_Node());
                 if(!entry){
-
+                    output::errorUndef(yylineno, ((IdNode*)$1)->id);
+                    exit(1);
                 }
+
                 string type1 = ((IdNode*)$1)->type;
                 string type2 = $3->print_Node();
-                if(type1 != type2 && !(type1=="BYTE" && type2=="INT")){
-                cout << "bad types\n";
+                if(type1 != type2 && !(type1=="byte" && type2=="int")){
+                    output::errorMismatch(yylineno);
+                    exit(1);
                 }
                 
                 output::printProductionRule(7);};
@@ -124,16 +140,33 @@ statement:  RETURN SC
 
 statement:  IF openScopeMarker LPAREN exp RPAREN statement 
             {
+                if($4->print_Node() != "bool"){
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
                 closeScope();
                 output::printProductionRule(10);};
 
 statement:  IF openScopeMarker LPAREN exp RPAREN statement ELSE openScopeMarker statement 
             {
+                if($4->print_Node() != "bool"){
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
                 closeScope();
                 output::printProductionRule(11);};
 
 statement:  WHILE openScopeMarker LPAREN exp RPAREN statement 
             {
+                if($4->print_Node() != "bool"){
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
+
+
                 closeScope();
                 output::printProductionRule(12);};
 
@@ -167,10 +200,31 @@ exp:        LPAREN exp RPAREN
                 output::printProductionRule(19);};
 
 exp:        exp BINOP exp 
-            {output::printProductionRule(20);};
+            {
+                if(($1->print_Node() != "int" && $1->print_Node() != "byte") || $3->print_Node() != "int" && $3->print_Node() != "byte"){
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
+                $$ = new NumNode(yylineno, 0);
+                if($1->print_Node() == "byte" && $3->print_Node() == "byte"){
+                    $$->type = "byte";
+                }
+                output::printProductionRule(20);};
             |
             exp MULT exp
-            {output::printProductionRule(20);};
+            {
+                if(($1->print_Node() != "int" && $1->print_Node() != "byte") || $3->print_Node() != "int" && $3->print_Node() != "byte"){
+                    output::errorMismatch(yylineno);
+                    exit(1);
+                }
+
+                $$ = new NumNode(yylineno, 0);
+                if($1->print_Node() == "byte" && $3->print_Node() == "byte"){
+                    $$->type = "byte";
+                }
+                
+                output::printProductionRule(20);};
 
 exp:        ID
             {
@@ -200,12 +254,15 @@ exp:        NUM B
                     exit(1);
                 }
                 
-                ((NumNode*)$1)->type = "BYTE";
+                ((NumNode*)$1)->type = "byte";
                 $$ = $1;
                 output::printProductionRule(24);}
 
 exp:        STRING
             {
+
+                //  CAN ONLY BE USED IN PRINT FUNCTION
+
                 $$ = $1;
                 output::printProductionRule(25);}
 
@@ -221,7 +278,7 @@ exp:        FALSE
 
 exp:        NOT exp
             {
-                if($2->print_Node() != "BOOL"){
+                if($2->print_Node() != "bool"){
                     output::errorMismatch(yylineno);
                     exit(1);
                 }
@@ -231,7 +288,7 @@ exp:        NOT exp
 
 exp:        exp AND exp
             {
-                if($1->print_Node() != "BOOL" || $3->print_Node() != "BOOL"){
+                if($1->print_Node() != "bool" || $3->print_Node() != "bool"){
                     output::errorMismatch(yylineno);
                     exit(1);
                 }
@@ -241,7 +298,7 @@ exp:        exp AND exp
 
 exp:        exp OR exp
             {
-                if($1->print_Node() != "BOOL" || $3->print_Node() != "BOOL"){
+                if($1->print_Node() != "bool" || $3->print_Node() != "bool"){
                     output::errorMismatch(yylineno);
                     exit(1);
                 }
@@ -251,27 +308,27 @@ exp:        exp OR exp
 
 exp:        exp RELATIONAL exp
             {
-                if(($1->print_Node != "NUM") && ($1->print_Node() != "BYTE") || ($3->print_Node != "NUM") && ($3->print_Node() != "BYTE")){
+                if(($1->print_Node() != "int") && ($1->print_Node() != "byte") || ($3->print_Node() != "int") && ($3->print_Node() != "byte")){
                     output::errorMismatch(yylineno);
                     exit(1);
                 }
 
-                $$ = new TypeNode(yylineno, "BOOL");
+                $$ = new TypeNode(yylineno, "bool");
                 output::printProductionRule(31);}
             |
             exp EQUAL exp
             {
-                if(($1->print_Node() != $3->print_Node()) || !($1->print_Node() == "NUM" && $3->print_Node() == "BYTE) || !($1->print_Node() == "BYTE" && $3->print_Node() == "NUM")) {
+                if(($1->print_Node() != $3->print_Node()) && (!($1->print_Node() == "int" && $3->print_Node() == "byte") || !($1->print_Node() == "byte" && $3->print_Node() == "int"))) {
                     output::errorMismatch(yylineno);
                     exit(1);
                 }
 
-                $$ = new TypeNode(yylineno, "BOOL");
+                $$ = new TypeNode(yylineno, "bool");
                 output::printProductionRule(31);}
 
 exp:        LPAREN type RPAREN exp
             {
-                if(($2->print_Node != "INT") && ($2->print_Node() != "BYTE") || ($4->print_Node != "NUM") && ($4->print_Node() != "BYTE")){
+                if(($2->print_Node() != "int") && ($2->print_Node() != "byte") || ($4->print_Node() != "int") && ($4->print_Node() != "byte")){
                     output::errorMismatch(yylineno);
                     exit(1);
                 }

@@ -15,6 +15,7 @@ class Node
 {
 public:
     int lineno;
+    string type = "";
     Node(int lineno) : lineno(lineno) {};
     virtual ~Node()= default;
     virtual string print_Node(){return "";};
@@ -66,10 +67,12 @@ class Symtab
         }
         
     }; 
+
     stack<shared_ptr<Table>> tableStack;
     stack<int> offsetsStack;
     int curr_offset = 0;
     shared_ptr<Table> root = nullptr;
+
     shared_ptr<Table> addTable(shared_ptr<Table>& parent)
     {
         shared_ptr<Table> newTable = make_shared<Table>(parent);
@@ -96,6 +99,7 @@ class Symtab
             Table::Entry* entry = curr->findEntry(name);
             if(entry != nullptr)
                 return entry;
+            curr = curr->parent;
         }
         return nullptr;
     }
@@ -121,7 +125,7 @@ class TypeNode : public Node {
 class NumNode : public Node {
     public:
     int num;
-    string type = "INT";
+    string type = "int";
     NumNode(int lineno, char* num) : Node(lineno), num(stoi(num)) {};
     string print_Node() override{
         return type;
