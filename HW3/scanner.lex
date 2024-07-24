@@ -66,8 +66,8 @@ comment \/\/[^\n\r]*
 {binop}                     {yylval = new Node(yylineno); return BINOP;}
 {mult}                      {yylval = new Node(yylineno); return MULT;}
 {letter}+({letter}|{digit})*		{yylval = new IdNode(yylineno, yytext); return ID;}
-"0"                         {yylval = new NumNode(yylineno, yytext); return NUM;}
-{nonzero}{digit}*          	{yylval = new NumNode(yylineno, yytext); return NUM;}
+"0"                         {yylval = new NumNode(yylineno, stoi(yytext)); return NUM;}
+{nonzero}{digit}*          	{yylval = new NumNode(yylineno, stoi(yytext)); return NUM;}
 {comment}                   ;
 (\"([^\n\r\"\\]|\\[rnt"\\])+\")     {yylval = new TypeNode(yylineno, "string"); return STRING;}
 .                                   {output::errorLex(yylineno); exit(0);};

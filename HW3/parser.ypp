@@ -13,16 +13,13 @@
 
     void closeScope(){
         if(!symtable.tableStack.empty()){
-                symtable.printSymtab(symtable.tableStack.top());
+                output::endScope();
+                symtable.tableStack.top()->printTable();
                 symtable.tableStack.pop();
                 symtable.offsetsStack.pop();
         }
     }
 %}
-
-
-
-
 
 
 
@@ -61,46 +58,53 @@
 %%
 
 program:    statements 
-            {output::printProductionRule(1);};
+            {
+                closeScope();
+                //output::printProductionRule(1);
+                };
 
 statements: statement 
-            {output::printProductionRule(2);};
+            {//output::printProductionRule(2);
+            };
 
 statements: statements statement 
-            {output::printProductionRule(3);};
+            {//output::printProductionRule(3);
+            };
 
 statement:  LBRACE openScopeMarker statements RBRACE 
             {
                 closeScope();
-                output::printProductionRule(4);
+                //output::printProductionRule(4);
             }
 
-openScopeMarker:          %empty
+openScopeMarker:        %empty
                         {
-                            if(symtable.tableStack.empty()){
-                                symtable.offsetsStack.push(0);
-                                symtable.printSymtab(symtable.addTable(symtable.root));
-                            } 
-                            else {
-                                symtable.printSymtab(symtable.addTable(symtable.tableStack.top()));
-                                }
-                            };
+                            symtable.addTable(symtable.tableStack.top());};
 
 statement:  type ID SC 
             {
                 Symtab::Table::Entry* entry = symtable.find(((IdNode*)$2)->id);
                 if(entry){
+                    if(entry->isFunc){
+                        output::errorUndef(yylineno, ((IdNode*)$2)->id);
+                        exit(1);
+                    }
                     output::errorDef(yylineno, ((IdNode*)$2)->id);
                     exit(1);
                 }
 
-                symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), symtable.offsetsStack.top()++);
-                output::printProductionRule(5);};
+                symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->print_Node(), symtable.offsetsStack.top()++);
+                //output::printProductionRule(5);
+                };
 
 statement:  type ID ASSIGN exp SC 
             {   
                 Symtab::Table::Entry* entry = symtable.find(((IdNode*)$2)->id);
                 if(entry){
+                    if(entry->isFunc){
+                        output::errorUndef(yylineno, ((IdNode*)$2)->id);
+                        exit(1);
+                    }
                     output::errorDef(yylineno, ((IdNode*)$2)->id);
                     exit(1);
                 }
@@ -112,14 +116,20 @@ statement:  type ID ASSIGN exp SC
                     exit(1);
                 }
                 
-                symtable.tableStack.top()->addEntry($2->print_Node(), $1->print_Node(), symtable.offsetsStack.top()++);
-                output::printProductionRule(6);};
+                symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->print_Node(), symtable.offsetsStack.top()++);
+                //output::printProductionRule(6);
+                };
 
 statement:  ID ASSIGN exp SC
             {   
-                Symtab::Table::Entry* entry = symtable.find($1->print_Node());
+                Symtab::Table::Entry* entry = symtable.find(((IdNode*)$1)->id);
                 if(!entry){
                     output::errorUndef(yylineno, ((IdNode*)$1)->id);
+                    exit(1);
+                }
+
+                if(entry->isFunc){
+                    output::errorUndef(yylineno, $1->print_Node());
                     exit(1);
                 }
 
@@ -130,13 +140,16 @@ statement:  ID ASSIGN exp SC
                     exit(1);
                 }
                 
-                output::printProductionRule(7);};
+                //output::printProductionRule(7);
+                };
 
 statement:  call SC 
-            {output::printProductionRule(8);};
+            {//output::printProductionRule(8);
+            };
 
 statement:  RETURN SC 
-            {output::printProductionRule(9);};
+            {//output::printProductionRule(9);
+            };
 
 statement:  IF openScopeMarker LPAREN exp RPAREN statement 
             {
@@ -146,7 +159,8 @@ statement:  IF openScopeMarker LPAREN exp RPAREN statement
                 }
 
                 closeScope();
-                output::printProductionRule(10);};
+                //output::printProductionRule(10);
+                };
 
 statement:  IF openScopeMarker LPAREN exp RPAREN statement ELSE openScopeMarker statement 
             {
@@ -156,48 +170,97 @@ statement:  IF openScopeMarker LPAREN exp RPAREN statement ELSE openScopeMarker 
                 }
 
                 closeScope();
-                output::printProductionRule(11);};
+                //output::printProductionRule(11);
+                };
 
-statement:  WHILE openScopeMarker LPAREN exp RPAREN statement 
+statement:  WHILE openScopeMarker whileCheck LPAREN exp RPAREN statement 
             {
-                if($4->print_Node() != "bool"){
+                if($5->print_Node() != "bool"){
                     output::errorMismatch(yylineno);
                     exit(1);
                 }
 
-
-
                 closeScope();
-                output::printProductionRule(12);};
+                //output::printProductionRule(12);
+                };
+
+whileCheck: %empty  
+            {
+                symtable.tableStack.top()->isWhile = true;
+            }
 
 statement:  BREAK SC 
-            {output::printProductionRule(13);};
+            {
+                if(!symtable.isInWhile()){
+                    output::errorUnexpectedBreak(yylineno);
+                    exit(1);
+                }
+                //output::printProductionRule(13);
+                };
 
 statement:  CONTINUE SC 
-            {output::printProductionRule(14);};
+            {
+                if(!symtable.isInWhile()){
+                    output::errorUnexpectedContinue(yylineno);
+                    exit(1);
+                }
+                //output::printProductionRule(14);
+                };
 
 call:       ID LPAREN exp RPAREN 
-            {output::printProductionRule(15);};
+            {
+                if(((IdNode*)$1)->id == "print"){
+                    if($3->print_Node() != "string"){
+                        output::errorPrototypeMismatch(yylineno, $3->print_Node(), "string");
+                        exit(1);
+                    }
+                }
+                else if(((IdNode*)$1)->id == "printi"){
+                    if($3->print_Node() != "int" && $3->print_Node() != "byte"){
+                        output::errorPrototypeMismatch(yylineno, $3->print_Node(), "int");
+                        exit(1);
+                    }
+                }
+                else if(((IdNode*)$1)->id == "readi"){
+                    if($3->print_Node() != "int" && $3->print_Node() != "byte"){
+                        cout << "here\n";
+                        output::errorPrototypeMismatch(yylineno, $3->print_Node(), "int");
+                        exit(1);
+                    }
+                    $$ = new NumNode(yylineno, 0);
+                }
+
+                else{
+                    output::errorUndefFunc(yylineno, $1->print_Node());
+                    exit(1);
+                }
+                
+                //output::printProductionRule(15);
+            };
 
 type:       INT 
             {
                 $$ = $1;
-                output::printProductionRule(16);};
+                //output::printProductionRule(16);
+                };
 
 type:       BYTE 
             {
                 $$ = $1;
-                output::printProductionRule(17);};
+                //output::printProductionRule(17);
+                };
 
 type:       BOOL 
             {
                 $$ = $1;
-                output::printProductionRule(18);};
+                //output::printProductionRule(18);
+                };
 
 exp:        LPAREN exp RPAREN 
             {
                 $$ = $2;
-                output::printProductionRule(19);};
+                //output::printProductionRule(19);
+                };
 
 exp:        exp BINOP exp 
             {
@@ -210,7 +273,8 @@ exp:        exp BINOP exp
                 if($1->print_Node() == "byte" && $3->print_Node() == "byte"){
                     $$->type = "byte";
                 }
-                output::printProductionRule(20);};
+                //output::printProductionRule(20);
+                };
             |
             exp MULT exp
             {
@@ -224,12 +288,17 @@ exp:        exp BINOP exp
                     $$->type = "byte";
                 }
                 
-                output::printProductionRule(20);};
+                //output::printProductionRule(20);
+                };
 
 exp:        ID
             {
-                Symtab::Table::Entry* entry = symtable.find($1->print_Node());
+                Symtab::Table::Entry* entry = symtable.find(((IdNode*)$1)->id);
                 if(!entry){
+                    output::errorUndef(yylineno, $1->print_Node());
+                    exit(1);
+                }
+                if(entry->isFunc){
                     output::errorUndef(yylineno, $1->print_Node());
                     exit(1);
                 }
@@ -237,10 +306,12 @@ exp:        ID
                 ((IdNode*)$1)->type = entry->type;
 
                 $$ = $1;
-                output::printProductionRule(21);}
+                //output::printProductionRule(21);
+                }
 
 exp:        call
-            {output::printProductionRule(22);}
+            {//output::printProductionRule(22);
+            }
 
 exp:        NUM
             {
@@ -256,25 +327,26 @@ exp:        NUM B
                 
                 ((NumNode*)$1)->type = "byte";
                 $$ = $1;
-                output::printProductionRule(24);}
+                //output::printProductionRule(24);
+                }
 
 exp:        STRING
             {
-
-                //  CAN ONLY BE USED IN PRINT FUNCTION
-
                 $$ = $1;
-                output::printProductionRule(25);}
+                //output::printProductionRule(25);
+                }
 
 exp :       TRUE
             {
                 $$ = $1;
-                output::printProductionRule(26);};
+                //output::printProductionRule(26);
+                };
 
 exp:        FALSE
             {
                 $$ = $1;
-                output::printProductionRule(27);}
+                //output::printProductionRule(27);
+                }
 
 exp:        NOT exp
             {
@@ -284,7 +356,8 @@ exp:        NOT exp
                 }
 
                 $$ = $2;
-                output::printProductionRule(28);}
+                //output::printProductionRule(28);
+                }
 
 exp:        exp AND exp
             {
@@ -294,7 +367,8 @@ exp:        exp AND exp
                 }
 
                 $$ = $2;
-                output::printProductionRule(29);}
+                //output::printProductionRule(29);
+                }
 
 exp:        exp OR exp
             {
@@ -304,7 +378,8 @@ exp:        exp OR exp
                 }
 
                 $$ = $2;
-                output::printProductionRule(30);}
+                //output::printProductionRule(30);
+                }
 
 exp:        exp RELATIONAL exp
             {
@@ -314,17 +389,19 @@ exp:        exp RELATIONAL exp
                 }
 
                 $$ = new TypeNode(yylineno, "bool");
-                output::printProductionRule(31);}
+                //output::printProductionRule(31);
+                }
             |
             exp EQUAL exp
             {
-                if(($1->print_Node() != $3->print_Node()) && (!($1->print_Node() == "int" && $3->print_Node() == "byte") || !($1->print_Node() == "byte" && $3->print_Node() == "int"))) {
+                if(($1->print_Node() == "string") || (($1->print_Node() != $3->print_Node()) && (!($1->print_Node() == "int" && $3->print_Node() == "byte") || !($1->print_Node() == "byte" && $3->print_Node() == "int")))) {
                     output::errorMismatch(yylineno);
                     exit(1);
                 }
 
                 $$ = new TypeNode(yylineno, "bool");
-                output::printProductionRule(31);}
+                //output::printProductionRule(31);
+                }
 
 exp:        LPAREN type RPAREN exp
             {
@@ -335,7 +412,8 @@ exp:        LPAREN type RPAREN exp
 
                 ((NumNode*)$4)->type = $2->print_Node();
                 $$ = $4;
-                output::printProductionRule(32);}
+                //output::printProductionRule(32);
+            }
 
 
 %%

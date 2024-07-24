@@ -18,7 +18,7 @@ public:
     string type = "";
     Node(int lineno) : lineno(lineno) {};
     virtual ~Node()= default;
-    virtual string print_Node(){return "";};
+    virtual string print_Node(){return type;};
 	
 };
 
@@ -34,26 +34,27 @@ class Symtab
             int offset;
             string name;
             string type;
+            bool isFunc;
             
-            Entry(string name, string type, int offset) : name(name), type(type), offset(offset) {};
+            Entry(string name, string type, int offset, bool isFunc) : name(name), type(type), offset(offset),isFunc(isFunc) {};
             void printEntry() const
             {
-                cout << "name: " << this->name << " type: " << this->type << " offset: " << this->offset << endl;
+                output::printID(name, offset, type);
             };
         };
 
         shared_ptr<Table> parent;
         vector<Entry*> entries;
+        bool isWhile = false;
 
         Table(shared_ptr<Table> parent) : parent(parent), entries() {};
 
-        void addEntry(string name, string type, int offset)
+        void addEntry(string name, string type, int offset, bool isFunc=false)
         {
-            entries.push_back(new Entry(name, type, offset));
+            entries.push_back(new Entry(name, type, offset, isFunc));
         };
         void printTable(){
             for(auto i : entries){
-                cout << "entry num: " << i->offset << " ";
                 i->printEntry();
             }
         };
@@ -72,7 +73,18 @@ class Symtab
     stack<int> offsetsStack;
     int curr_offset = 0;
     shared_ptr<Table> root = nullptr;
+    
 
+    Symtab(){
+        offsetsStack.push(0);
+        shared_ptr<Table> newTable = make_shared<Table>(root);
+        tableStack.push(newTable);
+
+        newTable->addEntry("print", "void", 0, true);
+        newTable->addEntry("printi", "void", 0, true);
+        newTable->addEntry("readi", "int", 0, true);
+    }
+    
     shared_ptr<Table> addTable(shared_ptr<Table>& parent)
     {
         shared_ptr<Table> newTable = make_shared<Table>(parent);
@@ -86,11 +98,9 @@ class Symtab
     {
         shared_ptr<Table> curr = table;
         while(curr != root) {
-            cout << "found table\n";
             curr->printTable();
             curr = curr->parent;
         }
-        cout << "reached root\n";
     };
 
     Table::Entry* find(string name){
@@ -102,6 +112,15 @@ class Symtab
             curr = curr->parent;
         }
         return nullptr;
+    }
+    bool isInWhile(){
+        shared_ptr<Table> curr = tableStack.top();
+        while(curr != nullptr){
+            if(curr->isWhile)
+                return true;
+            curr = curr->parent;
+        }
+        return false;
     }
     
     
@@ -126,7 +145,7 @@ class NumNode : public Node {
     public:
     int num;
     string type = "int";
-    NumNode(int lineno, char* num) : Node(lineno), num(stoi(num)) {};
+    NumNode(int lineno, int num) : Node(lineno), num(num) {};
     string print_Node() override{
         return type;
     };
