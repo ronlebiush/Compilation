@@ -15,8 +15,8 @@ class Node
 {
 public:
     int lineno;
-    string type = "";
-    Node(int lineno) : lineno(lineno) {};
+    string type;
+    Node(int lineno, string type = "") : lineno(lineno), type(type) {};
     virtual ~Node()= default;
     virtual string print_Node(){return type;};
 	
@@ -136,10 +136,9 @@ class Symtab
 
 class TypeNode : public Node {
     public:
-    string typeString;
-    TypeNode(int lineno, string typeString) : Node(lineno),  typeString(typeString){};
+    TypeNode(int yylineno, string type) : Node(yylineno, type){};
     string print_Node() override{
-        return typeString;
+        return type;
     };
 
 };
@@ -147,8 +146,7 @@ class TypeNode : public Node {
 class NumNode : public Node {
     public:
     int num;
-    string type = "INT";
-    NumNode(int lineno, int num) : Node(lineno), num(num) {};
+    NumNode(int yylineno, int num, string type) : Node(yylineno, type), num(num) {};
     string print_Node() override{
         return type;
     };
@@ -157,8 +155,7 @@ class NumNode : public Node {
 class IdNode : public Node {
     public:
     string id;
-    string type;
-    IdNode(int lineno, string id) : Node(lineno),  id(id){};
+    IdNode(int yylineno, string id, string type) : Node(yylineno, type),  id(id){};
     string print_Node() override{
         return type;
     };

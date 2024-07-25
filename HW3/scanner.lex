@@ -42,32 +42,32 @@ comment \/\/[^\n\r]*
 {whitespace}				;
 "int"                       {yylval = new TypeNode(yylineno, "INT"); return INT;}
 "byte"                      {yylval = new TypeNode(yylineno, "BYTE");return BYTE;}
-"b"                         {yylval = new Node(yylineno); return B;}
+"b"                         {yylval = new Node(yylineno, "B"); return B;}
 "bool"                      {yylval = new TypeNode(yylineno, "BOOL");return BOOL;}
 "and"                       {yylval = new TypeNode(yylineno, "BOOL"); return AND;}
 "or"                        {yylval = new TypeNode(yylineno, "BOOL"); return OR;}
 "not"                       {yylval = new TypeNode(yylineno, "BOOL"); return NOT;}
 "true"                      {yylval = new TypeNode(yylineno, "BOOL"); return TRUE;}
 "false"                     {yylval = new TypeNode(yylineno, "BOOL"); return FALSE;}
-"return"                    {yylval = new Node(yylineno); return RETURN;}
-"if"                        {yylval = new Node(yylineno); return IF;}
-"else"                      {yylval = new Node(yylineno); return ELSE;}
-"while"                     {yylval = new Node(yylineno); return WHILE;}
-"break"                     {yylval = new Node(yylineno); return BREAK;}
-"continue"                  {yylval = new Node(yylineno); return CONTINUE;}
-";"                         {yylval = new Node(yylineno); return SC;}
-"("                         {yylval = new Node(yylineno); return LPAREN;}
-")"                         {yylval = new Node(yylineno); return RPAREN;}
-"{"                         {yylval = new Node(yylineno); return LBRACE;}
-"}"                         {yylval = new Node(yylineno); return RBRACE;}
-"="                         {yylval = new Node(yylineno); return ASSIGN;}
-{relational}                {yylval = new Node(yylineno); return RELATIONAL;}
-{equal}                     {yylval = new Node(yylineno); return EQUAL;}
-{binop}                     {yylval = new Node(yylineno); return BINOP;}
-{mult}                      {yylval = new Node(yylineno); return MULT;}
-{letter}+({letter}|{digit})*		{yylval = new IdNode(yylineno, yytext); return ID;}
-"0"                         {yylval = new NumNode(yylineno, stoi(yytext)); return NUM;}
-{nonzero}{digit}*          	{yylval = new NumNode(yylineno, stoi(yytext)); return NUM;}
+"return"                    {yylval = new Node(yylineno, "RETURN"); return RETURN;}
+"if"                        {yylval = new Node(yylineno, "IF"); return IF;}
+"else"                      {yylval = new Node(yylineno, "ELSE"); return ELSE;}
+"while"                     {yylval = new Node(yylineno, "WHILE"); return WHILE;}
+"break"                     {yylval = new Node(yylineno, "BREAK"); return BREAK;}
+"continue"                  {yylval = new Node(yylineno, "CONTINUE"); return CONTINUE;}
+";"                         {yylval = new Node(yylineno, "SC"); return SC;}
+"("                         {yylval = new Node(yylineno, "LPAREN"); return LPAREN;}
+")"                         {yylval = new Node(yylineno, "RPAREN"); return RPAREN;}
+"{"                         {yylval = new Node(yylineno, "LBRACE"); return LBRACE;}
+"}"                         {yylval = new Node(yylineno, "RBRACE"); return RBRACE;}
+"="                         {yylval = new Node(yylineno, "ASSIGN"); return ASSIGN;}
+{relational}                {yylval = new Node(yylineno, "RELATIONAL"); return RELATIONAL;}
+{equal}                     {yylval = new Node(yylineno, "EQUAL"); return EQUAL;}
+{binop}                     {yylval = new Node(yylineno, "BINOP"); return BINOP;}
+{mult}                      {yylval = new Node(yylineno, "MULT"); return MULT;}
+{letter}+({letter}|{digit})*		{yylval = new IdNode(yylineno, yytext, ""); return ID;}
+"0"                         {yylval = new NumNode(yylineno, stoi(yytext), "INT"); return NUM;}
+{nonzero}{digit}*          	{yylval = new NumNode(yylineno, stoi(yytext), "INT"); return NUM;}
 {comment}                   ;
 (\"([^\n\r\"\\]|\\[rnt"\\])+\")     {yylval = new TypeNode(yylineno, "STRING"); return STRING;}
 .                                   {output::errorLex(yylineno); exit(0);};
