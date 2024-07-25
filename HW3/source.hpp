@@ -34,12 +34,15 @@ class Symtab
             int offset;
             string name;
             string type;
-            bool isFunc;
+            string funcArg;
             
-            Entry(string name, string type, int offset, bool isFunc) : name(name), type(type), offset(offset),isFunc(isFunc) {};
+            Entry(string name, string type, int offset, string funcArg) : name(name), type(type), offset(offset), funcArg(funcArg) {};
             void printEntry() const
             {
-                output::printID(name, offset, type);
+                if(this->funcArg != ""){
+                    output::printID(name, offset, output::makeFunctionType(funcArg, type));
+                }
+                else output::printID(name, offset, type);
             };
         };
 
@@ -49,9 +52,9 @@ class Symtab
 
         Table(shared_ptr<Table> parent) : parent(parent), entries() {};
 
-        void addEntry(string name, string type, int offset, bool isFunc=false)
+        void addEntry(string name, string type, int offset, string funcArg="")
         {
-            entries.push_back(new Entry(name, type, offset, isFunc));
+            entries.push_back(new Entry(name, type, offset, funcArg));
         };
         void printTable(){
             for(auto i : entries){
@@ -80,9 +83,9 @@ class Symtab
         shared_ptr<Table> newTable = make_shared<Table>(root);
         tableStack.push(newTable);
 
-        newTable->addEntry("print", "void", 0, true);
-        newTable->addEntry("printi", "void", 0, true);
-        newTable->addEntry("readi", "int", 0, true);
+        newTable->addEntry("print", "VOID", 0, "STRING");
+        newTable->addEntry("printi", "VOID", 0, "INT");
+        newTable->addEntry("readi", "INT", 0, "INT");
     }
     
     shared_ptr<Table> addTable(shared_ptr<Table>& parent)
@@ -144,7 +147,7 @@ class TypeNode : public Node {
 class NumNode : public Node {
     public:
     int num;
-    string type = "int";
+    string type = "INT";
     NumNode(int lineno, int num) : Node(lineno), num(num) {};
     string print_Node() override{
         return type;
