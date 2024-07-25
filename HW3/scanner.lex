@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include "source.hpp"
 #include "parser.tab.hpp"
-#include "output.hpp"
 #include "hw3_output.hpp"
 
 char handleAscii(char first, char sec);

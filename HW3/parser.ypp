@@ -3,13 +3,13 @@
     #include <stdlib.h>
     using namespace std;
     #include "source.hpp"
-    #include "output.hpp"
     #include "hw3_output.hpp"
 
     extern int yylex();
     extern int yylineno;
     int yyerror(const char* message);
     Symtab symtable;
+    std::vector<Node*> allocatedNodes;
 
     void closeScope(){
         if(!symtable.tableStack.empty()){
@@ -19,6 +19,12 @@
                 symtable.offsetsStack.pop();
         }
     }
+    void cleanUpNodes() {
+    for (Node* node : allocatedNodes) {
+        delete node;
+    }
+    allocatedNodes.clear();
+}
 %}
 
 
@@ -220,6 +226,7 @@ call:       ID LPAREN exp RPAREN
                         exit(1);
                     }
                     $$ = new Node($$->lineno, "VOID");
+                    allocatedNodes.push_back($$);
                 }
                 else if(((IdNode*)$1)->id == "printi"){
                     if($3->type != "INT" && $3->type != "BYTE"){
@@ -227,6 +234,7 @@ call:       ID LPAREN exp RPAREN
                         exit(1);
                     }
                     $$ = new Node($$->lineno, "VOID");
+                    allocatedNodes.push_back($$);
                 }
                 else if(((IdNode*)$1)->id == "readi"){
                     if($3->type != "INT" && $3->type != "BYTE"){
@@ -234,6 +242,7 @@ call:       ID LPAREN exp RPAREN
                         exit(1);
                     }
                     $$ = new NumNode($$->lineno, 0, "INT");
+                    allocatedNodes.push_back($$);
                 }
 
                 else{
@@ -277,6 +286,7 @@ exp:        exp BINOP exp
                 }
 
                 $$ = new NumNode($$->lineno, 0, "INT");
+                allocatedNodes.push_back($$);
                 //cout << ((NumNode*)$1)->type << " " << ((NumNode*)$3)->type << "\n";
                 if($1->type == "BYTE" && $3->type == "BYTE"){
                     ((NumNode*)$$)->type = "BYTE";
@@ -292,6 +302,7 @@ exp:        exp BINOP exp
                 }
 
                 $$ = new NumNode($$->lineno, 0, "INT");
+                allocatedNodes.push_back($$);
                 if($1->print_Node() == "BYTE" && $3->type == "BYTE"){
                     ((NumNode*)$$)->type = "BYTE";
                 }
@@ -400,6 +411,7 @@ exp:        exp RELATIONAL exp
                 }
 
                 $$ = new TypeNode($$->lineno, "BOOL");
+                allocatedNodes.push_back($$);
                 //output::printProductionRule(31);
                 }
             |
@@ -411,6 +423,7 @@ exp:        exp RELATIONAL exp
                 }
 
                 $$ = new TypeNode($$->lineno, "BOOL");
+                allocatedNodes.push_back($$);
                 //output::printProductionRule(31);
                 }
 
@@ -446,6 +459,8 @@ exp:        LPAREN type RPAREN exp
 int main() {
     int ret_val = yyparse(); 
     closeScope();
+    cleanUpNodes();
+
     return ret_val;
 } 
 
