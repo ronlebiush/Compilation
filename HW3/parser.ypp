@@ -15,6 +15,7 @@
         if(!symtable.tableStack.empty()){
                 output::endScope();
                 symtable.tableStack.top()->printTable();
+                symtable.tableStack.top()->deleteTable();
                 symtable.tableStack.pop();
                 symtable.offsetsStack.pop();
         }
@@ -65,22 +66,15 @@
 
 program:    statements 
             {
-                //closeScope();
-                //output::printProductionRule(1);
                 };
 
-statements: statement 
-            {//output::printProductionRule(2);
-            };
+statements: statement {};
 
-statements: statements statement 
-            {//output::printProductionRule(3);
-            };
+statements: statements statement { };
 
 statement:  LBRACE openScopeMarker statements RBRACE 
             {
                 closeScope();
-                //output::printProductionRule(4);
             }
 
 openScopeMarker:        %empty
@@ -92,28 +86,27 @@ statement:  type ID SC
                 Symtab::Table::Entry* entry = symtable.find(((IdNode*)$2)->id);
                 if(entry){
                     output::errorDef($$->lineno, ((IdNode*)$2)->id);
+                    cleanUpNodes();
                     exit(1);
                     }
 
                 symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->print_Node(), symtable.offsetsStack.top()++);
-                //output::printProductionRule(5);
                 };
 
 statement:  type ID ASSIGN exp SC 
             {   
-                //output::printProductionRule(6);
                 Symtab::Table::Entry* entry = symtable.find(((IdNode*)$2)->id);
                 if(entry){
                     output::errorDef($$->lineno, ((IdNode*)$2)->id);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 string type1 = $1->type;
                 string type2 = $4->type;
                 if((type1 != type2) && !(type1=="INT" && type2=="BYTE")){
-                    //cout << type1 << " " << type2 << "\n";
-                    //cout << "here\n";
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
                 
@@ -122,16 +115,17 @@ statement:  type ID ASSIGN exp SC
 
 statement:  ID ASSIGN exp SC
             {   
-                //output::printProductionRule(7);
                 string type1 = $1->type;
 
                 Symtab::Table::Entry* entry = symtable.find(((IdNode*)$1)->id);
                 if(!entry){
                     output::errorUndef($$->lineno, ((IdNode*)$1)->id);
+                    cleanUpNodes();
                     exit(1);
                 } else {
                     if(entry->funcArg != ""){
                         output::errorUndef($$->lineno, ((IdNode*)$1)->id);
+                        cleanUpNodes();
                         exit(1);
                     }
                     type1 = entry->type;
@@ -139,43 +133,37 @@ statement:  ID ASSIGN exp SC
                 
                 string type2 = $3->print_Node();
                 if(type1 != type2 && !(type1=="INT" && type2=="BYTE")){
-                   // cout << type1 << " " << type2 << "\n";
-                    //cout << "here\n";
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
                 
                 };
 
-statement:  call SC 
-            {//output::printProductionRule(8);
-            };
+statement:  call SC {};
 
-statement:  RETURN SC 
-            {//output::printProductionRule(9);
-            };
+statement:  RETURN SC {};
 
 statement:  IF openScopeMarker LPAREN exp RPAREN statement 
             {
-                //cout << $4->type << "\n";
                 if($4->type != "BOOL"){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 closeScope();
-                //output::printProductionRule(10);
                 };
 
 statement:  IF openScopeMarker LPAREN exp RPAREN statement ELSE openAndCloseScopeMarker statement 
             {
                 if($4->type != "BOOL"){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 closeScope();
-                //output::printProductionRule(11);
                 };
 
 openAndCloseScopeMarker:  %empty 
@@ -188,11 +176,11 @@ statement:  WHILE openScopeMarker whileCheck LPAREN exp RPAREN statement
             {
                 if($5->type != "BOOL"){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 closeScope();
-                //output::printProductionRule(12);
                 };
 
 whileCheck: %empty  
@@ -204,18 +192,18 @@ statement:  BREAK SC
             {
                 if(!symtable.isInWhile()){
                     output::errorUnexpectedBreak($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
-                //output::printProductionRule(13);
                 };
 
 statement:  CONTINUE SC 
             {
                 if(!symtable.isInWhile()){
                     output::errorUnexpectedContinue($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
-                //output::printProductionRule(14);
                 };
 
 call:       ID LPAREN exp RPAREN 
@@ -223,6 +211,7 @@ call:       ID LPAREN exp RPAREN
                 if(((IdNode*)$1)->id == "print"){
                     if($3->type != "STRING"){
                         output::errorPrototypeMismatch($$->lineno, "print", "STRING");
+                        cleanUpNodes();
                         exit(1);
                     }
                     $$ = new Node($$->lineno, "VOID");
@@ -231,6 +220,7 @@ call:       ID LPAREN exp RPAREN
                 else if(((IdNode*)$1)->id == "printi"){
                     if($3->type != "INT" && $3->type != "BYTE"){
                         output::errorPrototypeMismatch($$->lineno, "printi", "INT");
+                        cleanUpNodes();
                         exit(1);
                     }
                     $$ = new Node($$->lineno, "VOID");
@@ -239,6 +229,7 @@ call:       ID LPAREN exp RPAREN
                 else if(((IdNode*)$1)->id == "readi"){
                     if($3->type != "INT" && $3->type != "BYTE"){
                         output::errorPrototypeMismatch($$->lineno, "readi", "INT");
+                        cleanUpNodes();
                         exit(1);
                     }
                     $$ = new NumNode($$->lineno, 0, "INT");
@@ -247,57 +238,52 @@ call:       ID LPAREN exp RPAREN
 
                 else{
                     output::errorUndefFunc($$->lineno, ((IdNode*)$1)->id);
+                    cleanUpNodes();
                     exit(1);
                 }
                 
-                //output::printProductionRule(15);
             };
 
 type:       INT 
             {
                 $$ = $1;
-                //output::printProductionRule(16);
-                };
+            };
 
 type:       BYTE 
             {
                 $$ = $1;
-                //cout << "this type is: " << $1->type << "\n";
-                //output::printProductionRule(17);
-                };
+            };
 
 type:       BOOL 
             {
                 $$ = $1;
-                //output::printProductionRule(18);
-                };
+            };
 
 exp:        LPAREN exp RPAREN 
             {
                 $$ = $2;
-                //output::printProductionRule(19);
-                };
+            };
 
 exp:        exp BINOP exp 
             {
                 if(($1->type != "INT" && $1->type != "BYTE") || $3->type != "INT" && $3->type != "BYTE"){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 $$ = new NumNode($$->lineno, 0, "INT");
                 allocatedNodes.push_back($$);
-                //cout << ((NumNode*)$1)->type << " " << ((NumNode*)$3)->type << "\n";
                 if($1->type == "BYTE" && $3->type == "BYTE"){
                     ((NumNode*)$$)->type = "BYTE";
                 }
-                //output::printProductionRule(20);
                 };
             |
             exp MULT exp
             {
                 if(($1->type != "INT" && $1->type != "BYTE") || $3->type != "INT" && $3->type != "BYTE"){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
@@ -307,7 +293,6 @@ exp:        exp BINOP exp
                     ((NumNode*)$$)->type = "BYTE";
                 }
                 
-                //output::printProductionRule(20);
                 };
 
 exp:        ID
@@ -315,24 +300,23 @@ exp:        ID
                 Symtab::Table::Entry* entry = symtable.find(((IdNode*)$1)->id);
                 if(!entry){
                     output::errorUndef($$->lineno, ((IdNode*)$1)->id);
+                    cleanUpNodes();
                     exit(1);
                 }
                 if(entry->funcArg != ""){
                     output::errorUndef($$->lineno, ((IdNode*)$1)->id);
+                    cleanUpNodes();
                     exit(1);
                 }
                 
                 ((IdNode*)$1)->type = entry->type;
 
                 $$ = $1;
-                //cout << "finished id\n";
-                //output::printProductionRule(21);
                 }
 
 exp:        call
             {
                 $$ = $1;
-                //output::printProductionRule(22);
             }
 
 exp:        NUM
@@ -344,93 +328,91 @@ exp:        NUM B
             {
                 if(((NumNode*)$1)->num > 255){
                     output::errorByteTooLarge($$->lineno, std::to_string(((NumNode*)$1)->num));
+                    cleanUpNodes();
                     exit(1);
                 }
                 
                 ((NumNode*)$1)->type = "BYTE";
                 $$ = $1;
-                //output::printProductionRule(24);
                 }
 
 exp:        STRING
             {
                 $$ = $1;
-                //output::printProductionRule(25);
                 }
 
 exp :       TRUE
             {
                 $$ = $1;
-                //output::printProductionRule(26);
                 };
 
 exp:        FALSE
             {
                 $$ = $1;
-                //output::printProductionRule(27);
                 }
 
 exp:        NOT exp
             {
                 if($2->print_Node() != "BOOL"){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 $$ = $2;
-                //output::printProductionRule(28);
                 }
 
 exp:        exp AND exp
             {
                 if($1->print_Node() != "BOOL" || $3->print_Node() != "BOOL"){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 $$ = $2;
-                //output::printProductionRule(29);
                 }
 
 exp:        exp OR exp
             {
                 if($1->print_Node() != "BOOL" || $3->print_Node() != "BOOL"){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 $$ = $2;
-                //output::printProductionRule(30);
                 }
 
 exp:        exp RELATIONAL exp
             {
                 if(($1->print_Node() != "INT") && ($1->print_Node() != "BYTE") || ($3->print_Node() != "INT") && ($3->print_Node() != "BYTE")){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 $$ = new TypeNode($$->lineno, "BOOL");
                 allocatedNodes.push_back($$);
-                //output::printProductionRule(31);
                 }
             |
             exp EQUAL exp
             {
                 if(($1->print_Node() == "STRING") || (($1->print_Node() != $3->print_Node()) && (!($1->print_Node() == "INT" && $3->print_Node() == "BYTE") || !($1->print_Node() == "BYTE" && $3->print_Node() == "INT")))) {
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
                 $$ = new TypeNode($$->lineno, "BOOL");
                 allocatedNodes.push_back($$);
-                //output::printProductionRule(31);
                 }
 
 exp:        LPAREN type RPAREN exp
             {
                 if(($2->print_Node() != "INT") && ($2->print_Node() != "BYTE") || ($4->print_Node() != "INT") && ($4->print_Node() != "BYTE")){
                     output::errorMismatch($$->lineno);
+                    cleanUpNodes();
                     exit(1);
                 }
 
@@ -448,9 +430,7 @@ exp:        LPAREN type RPAREN exp
 
                 $4->type = $2->print_Node();
 
-                //cout << $4->type << "\n";
                 $$ = $4;
-                //output::printProductionRule(32);
             }
 
 
@@ -467,7 +447,7 @@ int main() {
 int yyerror(const char* s)
 {
     output::errorSyn(yylineno);
+    cleanUpNodes();
     exit(1);
-    //cout << "syntax erroring\n";
     return 0;
 }

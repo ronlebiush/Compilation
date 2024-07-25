@@ -61,6 +61,11 @@ class Symtab
                 i->printEntry();
             }
         };
+        void deleteTable(){
+            for(Entry* entry : entries){
+                delete entry;
+            }
+        };
 
         Entry* findEntry(string name){
             for(auto i : entries){
