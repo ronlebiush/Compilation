@@ -16,6 +16,7 @@ class Node
 public:
     int lineno;
     string type;
+    string next;
     Node(int lineno, string type = "") : lineno(lineno), type(type) {};
     virtual ~Node()= default;
     virtual string print_Node(){return type;};
@@ -139,9 +140,18 @@ class Symtab
 
 };
 
-class TypeNode : public Node {
+class BoolVarNode : public Node {
     public:
-    TypeNode(int yylineno, string type) : Node(yylineno, type){};
+    string var;
+    string truelab;
+    string falselab;
+    BoolVarNode(int yylineno, string type, string var) : Node(yylineno, type), var(var){};
+};
+
+class NumVarNode : public Node {
+    public:
+    string var;
+    NumVarNode(int yylineno, string type, string var) : Node(yylineno, type), var(var){};
     string print_Node() override{
         return type;
     };
