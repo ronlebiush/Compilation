@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <string>
-
+#include <iostream>
 using namespace std;
 
 class CodeBuffer{
@@ -32,7 +32,11 @@ public:
 	void emitGlobal(const string& dataLine);
 	//print the content of the global buffer to stdout
 	void printGlobalBuffer();
-
+	~CodeBuffer(){
+		for(string str : buffer){
+			cout << str << endl;
+		}
+	}
 };
 
 #endif

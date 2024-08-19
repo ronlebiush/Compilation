@@ -144,7 +144,7 @@ statement:  call SC {};
 
 statement:  RETURN SC {};
 
-statement:  IF openScopeMarker LPAREN exp RPAREN statement 
+statement:  IF openScopeMarker LPAREN boolcheck RPAREN statement 
             {
                 if($4->type != "BOOL"){
                     output::errorMismatch($$->lineno);
@@ -155,7 +155,7 @@ statement:  IF openScopeMarker LPAREN exp RPAREN statement
                 closeScope();
                 };
 
-statement:  IF openScopeMarker LPAREN exp RPAREN statement ELSE openAndCloseScopeMarker statement 
+statement:  IF openScopeMarker LPAREN boolcheck RPAREN statement ELSE openAndCloseScopeMarker statement 
             {
                 if($4->type != "BOOL"){
                     output::errorMismatch($$->lineno);
@@ -172,14 +172,13 @@ openAndCloseScopeMarker:  %empty
                         symtable.addTable(symtable.tableStack.top());
                     }
 
-statement:  WHILE openScopeMarker whileCheck LPAREN exp RPAREN statement 
+statement:  WHILE openScopeMarker whileCheck LPAREN boolcheck RPAREN statement 
             {
                 if($5->type != "BOOL"){
                     output::errorMismatch($$->lineno);
                     cleanUpNodes();
                     exit(1);
                 }
-
                 closeScope();
                 };
 
@@ -398,7 +397,7 @@ exp:        exp RELATIONAL exp
             |
             exp EQUAL exp
             {
-                if(($1->print_Node() == "STRING") || (($1->print_Node() != $3->print_Node()) && (!($1->print_Node() == "INT" && $3->print_Node() == "BYTE") || !($1->print_Node() == "BYTE" && $3->print_Node() == "INT")))) {
+                if(($1->print_Node() == "STRING") || (($1->print_Node() != $3->print_Node()) && (!($1->print_Node() == "INT" && $3->print_Node() == "BYTE") && !($1->print_Node() == "BYTE" && $3->print_Node() == "INT")))) {
                     output::errorMismatch($$->lineno);
                     cleanUpNodes();
                     exit(1);
@@ -431,6 +430,16 @@ exp:        LPAREN type RPAREN exp
                 $4->type = $2->print_Node();
 
                 $$ = $4;
+            }
+
+boolcheck:  exp 
+            {
+                if($1->type != "BOOL"){
+                    output::errorMismatch($$->lineno);
+                    cleanUpNodes();
+                    exit(1);
+                }
+                //maybe should emit here instead
             }
 
 
