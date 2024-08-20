@@ -5,6 +5,7 @@
     #include "source.hpp"
     #include "hw3_output.hpp"
     #include "llvmcode.hpp"
+    extern Symtab symtable;
 
     extern int yylex();
     extern int yylineno;
@@ -90,13 +91,16 @@ statement:  type ID SC
                     exit(1);
                     }
 
-                string var = handler.allocate_var($1->type, ((IdNode*)$2)->id, "");
+                string var = handler.freshVar();
                 symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->type, symtable.offsetsStack.top()++, var);
+                Symtab::Table::Entry* newEntry = symtable.find(((IdNode*)$2)->id);
+                handler.allocate_var(newEntry->type, newEntry->name, newEntry->var, newEntry->offset, "");
+                
+
             };
 
 statement:  type ID ASSIGN exp SC 
             {   
-                //IF EXP IS A BOOL, TRUE/FALSE LABELS WONT BE STORED IN SYMTAB
 
                 Symtab::Table::Entry* entry = symtable.find(((IdNode*)$2)->id);
                 if(entry){
@@ -113,9 +117,9 @@ statement:  type ID ASSIGN exp SC
                     exit(1);
                 }
                 
-                string var = handler.allocate_var($1->type, ((IdNode*)$2)->id, $4->var);
+                //string var = handler.allocate_var($1->type, ((IdNode*)$2)->id, $4->var);
 
-                symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->type, symtable.offsetsStack.top()++, var);
+                //symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->type, symtable.offsetsStack.top()++, var);
                 };
 
 statement:  ID ASSIGN exp SC
@@ -150,7 +154,7 @@ statement:  ID ASSIGN exp SC
 
 statement:  call SC {};
 
-statement:  RETURN SC {};
+statement:  RETURN SC { handler.codeBuffer.emit("ret i32 0"); };
 
 //𝑆 → 𝑖𝑓 𝑩 𝑴 𝑡ℎ𝑒𝑛 𝑺1
 
@@ -206,10 +210,16 @@ boolcheck:  exp
 
                 //br i1 %var_1 label %label_true, label %label_false
 
-                handler.codeBuffer.emit("br i1 " + ((BoolVarNode*)$1)->var + " label %" + ((BoolVarNode*)$1)->truelab + ", label %" + ((BoolVarNode*)$1)->falselab);
-                handler.codeBuffer.emit(((BoolVarNode*)$1)->truelab+":");
-                //handler.if_labels.push(((BoolVarNode*)$1)->falselab);
-                $$ = $1;
+                string truelab = handler.codeBuffer.freshLabel();
+                string falselab = handler.codeBuffer.freshLabel();
+
+                handler.codeBuffer.emit("br i1 " + ((BoolVarNode*)$1)->var + " label %" + truelab + ", label %" + falselab);
+                handler.codeBuffer.emit(truelab + ":");
+                //handler.if_labels.push(falselab);
+
+                $$ = new BoolVarNode($1->lineno, $1->type, $1->var);
+                ((BoolVarNode*)$$)->truelab = truelab;
+                ((BoolVarNode*)$$)->falselab = falselab;
             }
 
 
@@ -359,7 +369,7 @@ exp:        ID
                 ((IdNode*)$1)->type = entry->type;
                 ((IdNode*)$1)->var = entry->var;
                 $$ = $1;
-                }
+            }
 
 exp:        call
             {
@@ -492,6 +502,8 @@ int main() {
     handler.codeBuffer.emit("declare i32 @printf(i8*,...)");
     handler.codeBuffer.emit("declare void @exit(i32)");
     handler.codeBuffer.emit("declare i32 @scanf(i8*,...)");
+    symtable.rbpvar = handler.freshVar();
+    handler.codeBuffer.emit(symtable.rbpvar + " = alloca i32, i32 50");
 
     int ret_val = yyparse(); 
 

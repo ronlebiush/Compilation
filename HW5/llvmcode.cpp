@@ -1,4 +1,6 @@
 #include "llvmcode.hpp"
+extern Symtab symtable;
+
 
 std::string LlvmCodeHandler::freshVar(){
     return "%var_" + std::to_string(this->RegNum++);
@@ -76,12 +78,10 @@ void LlvmCodeHandler::handle_relop(BoolVarNode* res_exp, Node* L_exp, Node* R_ex
             llvm_relop = "u" + llvm_relop;
     }
 
-    std::string relop_start_label = codeBuffer.freshLabel();
+    // std::string relop_start_label = codeBuffer.freshLabel();
     /* nextlist of exp2 is the start of these operations */
     res_exp->var = this->freshVar();
     this->codeBuffer.emit(res_exp->var + " = " + "icmp " + llvm_relop + " i32 " + L_exp->var + ", " + R_exp->var);
-    res_exp->truelab = codeBuffer.freshLabel();
-    res_exp->falselab = codeBuffer.freshLabel();
 
     //int next_instr = this->codeBuffer.emit("br i1 " + var + ", label @, label @");
 
@@ -91,12 +91,15 @@ void LlvmCodeHandler::handle_relop(BoolVarNode* res_exp, Node* L_exp, Node* R_ex
 
 }
 
-string LlvmCodeHandler::allocate_var(string type, string id, string assigningVar) {
-    string var = freshVar();
+string LlvmCodeHandler::allocate_var(string type, string id, string var, int offset, string assigningVar) {
 
     string llvmtype = getLlvmType(type);
 
-    codeBuffer.emit(var + " = alloca " + llvmtype);
+    codeBuffer.emit(var + " = add i32 0, 0");
+
+    string ptrvar = freshVar();
+    codeBuffer.emit(ptrvar + " = getelementptre i32, i32* " + symtable.rbpvar + ", i32 " + to_string(offset));
+    codeBuffer.emit("store i32 " + var + ", i32* " + ptrvar); //MAKE CASES FOR BYTE
 
     if(llvmtype == "INT" || "BYTE")
         codeBuffer.emit("store " + llvmtype + " 0, " + llvmtype + "* " + var);

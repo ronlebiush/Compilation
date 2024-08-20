@@ -84,6 +84,7 @@ class Symtab
     stack<int> offsetsStack;
     int curr_offset = 0;
     shared_ptr<Table> root = nullptr;
+    string rbpvar;
     
 
     Symtab(){
