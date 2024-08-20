@@ -65,9 +65,9 @@ comment \/\/[^\n\r]*
 {equal}                     {yylval = new Node(yylineno, yytext);allocatedNodes.push_back(yylval); return EQUAL;}
 {binop}                     {yylval = new Node(yylineno, yytext);allocatedNodes.push_back(yylval); return BINOP;}
 {mult}                      {yylval = new Node(yylineno, yytext);allocatedNodes.push_back(yylval); return MULT;}
-{letter}+({letter}|{digit})*		{yylval = new IdNode(yylineno, yytext, "");allocatedNodes.push_back(yylval); return ID;}
-"0"                         {yylval = new NumNode(yylineno, stoi(yytext), "INT");allocatedNodes.push_back(yylval); return NUM;}
-{nonzero}{digit}*          	{yylval = new NumNode(yylineno, stoi(yytext), "INT");allocatedNodes.push_back(yylval); return NUM;}
+{letter}+({letter}|{digit})*		{yylval = new IdNode(yylineno, yytext, "", "");allocatedNodes.push_back(yylval); return ID;}
+"0"                         {yylval = new NumNode(yylineno, stoi(yytext), "INT", "");allocatedNodes.push_back(yylval); return NUM;}
+{nonzero}{digit}*          	{yylval = new NumNode(yylineno, stoi(yytext), "INT", "");allocatedNodes.push_back(yylval); return NUM;}
 {comment}                   ;
 (\"([^\n\r\"\\]|\\[rnt"\\])+\")     {yylval = new Node(yylineno, "STRING");allocatedNodes.push_back(yylval); return STRING;}
 .                                   {output::errorLex(yylineno); exit(0);};

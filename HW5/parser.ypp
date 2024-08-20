@@ -66,13 +66,11 @@
 
 %%
 
-program:    statements 
-            {
-                };
+program:    statements {};
 
 statements: statement {};
 
-statements: statements statement { };
+statements: statements statement {};
 
 statement:  LBRACE openScopeMarker statements RBRACE 
             {
@@ -92,11 +90,14 @@ statement:  type ID SC
                     exit(1);
                     }
 
-                symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->print_Node(), symtable.offsetsStack.top()++);
-                };
+                string var = handler.allocate_var($1->type, ((IdNode*)$2)->id, "");
+                symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->type, symtable.offsetsStack.top()++, var);
+            };
 
 statement:  type ID ASSIGN exp SC 
             {   
+                //IF EXP IS A BOOL, TRUE/FALSE LABELS WONT BE STORED IN SYMTAB
+
                 Symtab::Table::Entry* entry = symtable.find(((IdNode*)$2)->id);
                 if(entry){
                     output::errorDef($$->lineno, ((IdNode*)$2)->id);
@@ -112,7 +113,9 @@ statement:  type ID ASSIGN exp SC
                     exit(1);
                 }
                 
-                symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->print_Node(), symtable.offsetsStack.top()++);
+                string var = handler.allocate_var($1->type, ((IdNode*)$2)->id, $4->var);
+
+                symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->type, symtable.offsetsStack.top()++, var);
                 };
 
 statement:  ID ASSIGN exp SC
@@ -133,31 +136,36 @@ statement:  ID ASSIGN exp SC
                     type1 = entry->type;
                 }
                 
-                string type2 = $3->print_Node();
+                string type2 = $3->type;
                 if(type1 != type2 && !(type1=="INT" && type2=="BYTE")){
                     output::errorMismatch($$->lineno);
                     cleanUpNodes();
                     exit(1);
                 }
+
+            string llvmtype = handler.getLlvmType($1->type);
+            handler.codeBuffer.emit("store " + llvmtype + " " + $3->var + ", " + llvmtype + "* " + ((IdNode*)$1)->id);
                 
-                };
+            };
 
 statement:  call SC {};
 
 statement:  RETURN SC {};
+
 //𝑆 → 𝑖𝑓 𝑩 𝑴 𝑡ℎ𝑒𝑛 𝑺1
-//statement:  IF openScopeMarker LPAREN boolcheck RPAREN statement CloseScopeMarker {handler.codeBuffer.emit(((BoolVarNode*)$4)->falselab+":");} 
+
 statement:  IF openScopeMarker LPAREN boolcheck RPAREN statement CloseScopeMarker
             {
 
-                handler.codeBuffer.emit(handler.if_labels.top() + ":");
-                handler.if_labels.pop();
+                handler.codeBuffer.emit(((BoolVarNode*)$4)->falselab + ":");
+                //handler.codeBuffer.emit(handler.if_labels.top() + ":"); // why was this needed?
+                //handler.if_labels.pop();
                 //closeScope();
                 };
 
 
 //𝑆 → 𝑖𝑓 𝑩 𝑡ℎ𝑒𝑛 𝑴𝟏 𝑺𝟏  𝑒𝑙𝑠𝑒 𝑁 𝑴2𝑺2
-//statement:  IF openScopeMarker LPAREN boolcheck RPAREN statement CloseScopeMarker {handler.codeBuffer.emit("goto " + handler.codeBuffer.freshLabel());} ELSE openScopeMarker {handler.codeBuffer.emit(((BoolVarNode*)$4)->falselab+":");} statement 
+
 statement:    IF openScopeMarker LPAREN boolcheck RPAREN statement CloseScopeMarker ELSE skipMarker {handler.codeBuffer.emit(((BoolVarNode*)$4)->falselab + ":");} openScopeMarker statement CloseScopeMarker
             {
                 handler.codeBuffer.emit($9->next + ":");
@@ -168,13 +176,25 @@ skipMarker: %empty
             {
                 $$ = new Node(0);
                 $$->next = handler.codeBuffer.freshLabel();
-                handler.codeBuffer.emit("goto " + $$->next);
+                handler.codeBuffer.emit("br label %" + $$->next);
             }
 
 CloseScopeMarker:  %empty 
                     {
                         closeScope();
                     }
+
+
+statement:  WHILE openScopeMarker whileCheck LPAREN boolcheck RPAREN statement 
+            {
+                closeScope();
+
+                handler.codeBuffer.emit("br label %" + $3->next); //go back to start
+                handler.codeBuffer.emit(((BoolVarNode*)$5)->falselab + ":"); //where while goes if exp wrong
+                handler.codeBuffer.emit(handler.break_labels.top() + ":");
+                handler.break_labels.pop();
+            };
+
 
 boolcheck:  exp 
             {
@@ -188,19 +208,27 @@ boolcheck:  exp
 
                 handler.codeBuffer.emit("br i1 " + ((BoolVarNode*)$1)->var + " label %" + ((BoolVarNode*)$1)->truelab + ", label %" + ((BoolVarNode*)$1)->falselab);
                 handler.codeBuffer.emit(((BoolVarNode*)$1)->truelab+":");
-                handler.if_labels.push(((BoolVarNode*)$1)->falselab);
+                //handler.if_labels.push(((BoolVarNode*)$1)->falselab);
                 $$ = $1;
             }
 
-statement:  WHILE openScopeMarker whileCheck LPAREN exp RPAREN statement 
-            {
-                closeScope();
-                };
 
 whileCheck: %empty  
-            {
+            { 
                 symtable.tableStack.top()->isWhile = true;
+
+                string contlabel = handler.codeBuffer.freshLabel();
+                string breaklabel = handler.codeBuffer.freshLabel();
+                handler.cont_labels.push(contlabel);
+                handler.break_labels.push(breaklabel);
+
+                handler.codeBuffer.emit(contlabel + ":");
+
+                $$ = new Node(0);
+                $$->next = handler.codeBuffer.freshLabel();
+                handler.codeBuffer.emit($$->next + ":");
             }
+
 
 statement:  BREAK SC 
             {
@@ -209,7 +237,9 @@ statement:  BREAK SC
                     cleanUpNodes();
                     exit(1);
                 }
-                };
+
+                handler.codeBuffer.emit("br label %" + handler.break_labels.top());
+            };
 
 statement:  CONTINUE SC 
             {
@@ -218,7 +248,9 @@ statement:  CONTINUE SC
                     cleanUpNodes();
                     exit(1);
                 }
-                };
+
+                handler.codeBuffer.emit("br label %" + handler.cont_labels.top());
+            };
 
 call:       ID LPAREN exp RPAREN 
             {
@@ -246,7 +278,7 @@ call:       ID LPAREN exp RPAREN
                         cleanUpNodes();
                         exit(1);
                     }
-                    $$ = new NumNode($$->lineno, 0, "INT");
+                    $$ = new NumNode($$->lineno, 0, "INT", "temp");
                     allocatedNodes.push_back($$);
                 }
 
@@ -286,12 +318,12 @@ exp:        exp BINOP exp
                     exit(1);
                 }
 
-                $$ = new NumVarNode($$->lineno, "INT", handler.freshVar());
+                $$ = new Node($$->lineno, "INT", handler.freshVar());
                 allocatedNodes.push_back($$);
                 if($1->type == "BYTE" && $3->type == "BYTE"){
-                    ((NumVarNode*)$$)->type = "BYTE";
+                    $$->type = "BYTE";
                 }
-                handler.handle_binop((NumVarNode*)$$, (NumVarNode*)$1, (NumVarNode*)$3, $2->type);
+                handler.handle_binop($$, $1, $3, $2->type);
                 };
             |
             exp MULT exp
@@ -302,12 +334,12 @@ exp:        exp BINOP exp
                     exit(1);
                 }
 
-                $$ = new NumVarNode($$->lineno, "INT", handler.freshVar());
+                $$ = new Node($$->lineno, "INT", handler.freshVar());
                 allocatedNodes.push_back($$);
                 if($1->print_Node() == "BYTE" && $3->type == "BYTE"){
-                    ((NumVarNode*)$$)->type = "BYTE";
+                    $$->type = "BYTE";
                 }
-                handler.handle_binop((NumVarNode*)$$, (NumVarNode*)$1, (NumVarNode*)$3, $2->type);
+                handler.handle_binop($$, $1, $3, $2->type);
             };
 
 exp:        ID
@@ -325,7 +357,7 @@ exp:        ID
                 }
                 
                 ((IdNode*)$1)->type = entry->type;
-
+                ((IdNode*)$1)->var = entry->var;
                 $$ = $1;
                 }
 
@@ -336,18 +368,20 @@ exp:        call
 
 exp:        NUM
             {
-                $$ = new NumVarNode($$->lineno, $1->type, handler.freshVar());
+                $$ = new NumNode($$->lineno, ((NumNode*)$1)->num, $1->type, handler.freshVar());
+                handler.codeBuffer.emit($$->var + " = add i32 " + to_string(((NumNode*)$$)->num) + ", 0");
             }
 
 exp:        NUM B
             {
                 if(((NumNode*)$1)->num > 255){
-                    output::errorByteTooLarge($$->lineno, std::to_string(((NumNode*)$1)->num));
+                    output::errorByteTooLarge($$->lineno, to_string(((NumNode*)$1)->num));
                     cleanUpNodes();
                     exit(1);
                 }
                 
-                $$ = new NumVarNode($$->lineno, "BYTE", handler.freshVar());
+                $$ = new NumNode($$->lineno, ((NumNode*)$1)->num, "BYTE", handler.freshVar());
+                handler.codeBuffer.emit($$->var + " = add i8 " + to_string(((NumNode*)$$)->num) + ", 0");
                 }
 
 exp:        STRING
@@ -408,7 +442,7 @@ exp:        exp RELATIONAL exp
 
                 $$ = new BoolVarNode($$->lineno, "BOOL", handler.freshVar());
                 allocatedNodes.push_back($$);
-                handler.handle_relop((BoolVarNode*)$$, (NumVarNode*)$1, (NumVarNode*)$3, $2->type);
+                handler.handle_relop((BoolVarNode*)$$, $1, $3, $2->type);
             }
             |
             exp EQUAL exp
@@ -453,9 +487,20 @@ exp:        LPAREN type RPAREN exp
 %%
 
 int main() {
+
+    handler.codeBuffer.emit("define i32 @main(){");
+    handler.codeBuffer.emit("declare i32 @printf(i8*,...)");
+    handler.codeBuffer.emit("declare void @exit(i32)");
+    handler.codeBuffer.emit("declare i32 @scanf(i8*,...)");
+
     int ret_val = yyparse(); 
+
     closeScope();
     cleanUpNodes();
+
+    handler.codeBuffer.emit("ret i32 0");
+    handler.codeBuffer.emit("}");
+    handler.codeBuffer.printCodeBuffer();
 
     return ret_val;
 } 

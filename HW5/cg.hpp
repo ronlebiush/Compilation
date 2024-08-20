@@ -32,11 +32,11 @@ public:
 	void emitGlobal(const string& dataLine);
 	//print the content of the global buffer to stdout
 	void printGlobalBuffer();
-	~CodeBuffer(){
+	/*~CodeBuffer(){
 		for(string str : buffer){
 			cout << str << endl;
 		}
-	}
+	}*/
 };
 
 #endif

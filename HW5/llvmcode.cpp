@@ -5,7 +5,7 @@ std::string LlvmCodeHandler::freshVar(){
 }
 
 
-void LlvmCodeHandler::handle_binop(NumVarNode* res_exp, const NumVarNode* L_exp, const NumVarNode* R_exp, const std::string op){ 
+void LlvmCodeHandler::handle_binop(Node* res_exp, Node* L_exp, Node* R_exp, std::string op){ 
     res_exp->var = freshVar();
     string llvm_op;
     if (op == "*") {
@@ -42,27 +42,26 @@ void LlvmCodeHandler::handle_binop(NumVarNode* res_exp, const NumVarNode* L_exp,
 }
 
 
-void LlvmCodeHandler::handle_relop(BoolVarNode* res_exp, const NumVarNode* L_exp, const NumVarNode* R_exp, const string op){ 
-    {
+void LlvmCodeHandler::handle_relop(BoolVarNode* res_exp, Node* L_exp, Node* R_exp, string op){ 
     string llvm_relop = "";
     bool sign;
     if (op == "=="){
-        llvm_relop = "eq ";
+        llvm_relop = "eq";
     }
     else if (op == "!=") {
-        llvm_relop = "ne ";
+        llvm_relop = "ne";
     }
     else if (op == "<"){
-        llvm_relop = "lt ";
+        llvm_relop = "lt";
     }
     else if (op == ">") {
-        llvm_relop = "gt ";
+        llvm_relop = "gt";
     }
     else if (op == "<=" ) {
-        llvm_relop = "le ";
+        llvm_relop = "le";
     }
     else if (op == ">=") {
-        llvm_relop = "ge ";
+        llvm_relop = "ge";
     }
 
     if (L_exp->type == "INT" || R_exp->type == "INT")
@@ -70,7 +69,7 @@ void LlvmCodeHandler::handle_relop(BoolVarNode* res_exp, const NumVarNode* L_exp
     else
         sign = false;
     
-    if (llvm_relop != "eq " && llvm_relop != "ne ") {
+    if (llvm_relop != "eq" && llvm_relop != "ne") {
         if (sign)
             llvm_relop = "s" + llvm_relop;
         else
@@ -91,4 +90,36 @@ void LlvmCodeHandler::handle_relop(BoolVarNode* res_exp, const NumVarNode* L_exp
     /* nextlist of exp1 is exp2 entry*/
 
 }
+
+string LlvmCodeHandler::allocate_var(string type, string id, string assigningVar) {
+    string var = freshVar();
+
+    string llvmtype = getLlvmType(type);
+
+    codeBuffer.emit(var + " = alloca " + llvmtype);
+
+    if(llvmtype == "INT" || "BYTE")
+        codeBuffer.emit("store " + llvmtype + " 0, " + llvmtype + "* " + var);
+    else if(llvmtype == "BOOL")
+        codeBuffer.emit("store i1 false, i1* " + var);
+
+    if(assigningVar != ""){
+        codeBuffer.emit("store " + llvmtype + " " + assigningVar + ", " + llvmtype + "* " + var);
+    }
+
+    return var;
+}
+
+string LlvmCodeHandler::getLlvmType(string type){
+    string llvmtype;
+    if(type == "INT")
+        llvmtype = "i32";
+    else if(type == "BYTE")
+        llvmtype = "i8";
+    else if(type == "BOOL")
+        llvmtype = "i1";
+    else //string
+        llvmtype = "i8*";
+
+    return llvmtype;
 }

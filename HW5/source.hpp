@@ -17,7 +17,8 @@ public:
     int lineno;
     string type;
     string next;
-    Node(int lineno, string type = "") : lineno(lineno), type(type) {};
+    string var;
+    Node(int lineno, string type = "", string var = "") : lineno(lineno), type(type), var(var) {};
     virtual ~Node()= default;
     virtual string print_Node(){return type;};
 	
@@ -36,8 +37,9 @@ class Symtab
             string name;
             string type;
             string funcArg;
+            string var;
             
-            Entry(string name, string type, int offset, string funcArg) : name(name), type(type), offset(offset), funcArg(funcArg) {};
+            Entry(string name, string type, int offset, string funcArg, string var) : name(name), type(type), offset(offset), funcArg(funcArg), var(var) {};
             void printEntry() const
             {
                 if(this->funcArg != ""){
@@ -53,9 +55,9 @@ class Symtab
 
         Table(shared_ptr<Table> parent) : parent(parent), entries() {};
 
-        void addEntry(string name, string type, int offset, string funcArg="")
+        void addEntry(string name, string type, int offset, string var, string funcArg="")
         {
-            entries.push_back(new Entry(name, type, offset, funcArg));
+            entries.push_back(new Entry(name, type, offset, funcArg, var));
         };
         void printTable(){
             for(auto i : entries){
@@ -89,9 +91,9 @@ class Symtab
         shared_ptr<Table> newTable = make_shared<Table>(root);
         tableStack.push(newTable);
 
-        newTable->addEntry("print", "VOID", 0, "STRING");
-        newTable->addEntry("printi", "VOID", 0, "INT");
-        newTable->addEntry("readi", "INT", 0, "INT");
+        newTable->addEntry("print", "VOID", 0, "tempvar", "STRING");
+        newTable->addEntry("printi", "VOID", 0, "tempvar", "INT");
+        newTable->addEntry("readi", "INT", 0, "tempvar", "INT");
     }
     
     shared_ptr<Table> addTable(shared_ptr<Table>& parent)
@@ -145,23 +147,23 @@ class BoolVarNode : public Node {
     string var;
     string truelab;
     string falselab;
-    BoolVarNode(int yylineno, string type, string var) : Node(yylineno, type), var(var){};
+    BoolVarNode(int yylineno, string type, string var) : Node(yylineno, type, var){};
 };
 
-class NumVarNode : public Node {
-    public:
-    string var;
-    NumVarNode(int yylineno, string type, string var) : Node(yylineno, type), var(var){};
-    string print_Node() override{
-        return type;
-    };
+// class NumVarNode : public Node {
+//     public:
+//     string var;
+//     NumVarNode(int yylineno, string type, string var) : Node(yylineno, type), var(var){};
+//     string print_Node() override{
+//         return type;
+//     };
 
-};
+// };
 
 class NumNode : public Node {
     public:
     int num;
-    NumNode(int yylineno, int num, string type) : Node(yylineno, type), num(num) {};
+    NumNode(int yylineno, int num, string type, string var) : Node(yylineno, type, var), num(num) {};
     string print_Node() override{
         return type;
     };
@@ -170,7 +172,7 @@ class NumNode : public Node {
 class IdNode : public Node {
     public:
     string id;
-    IdNode(int yylineno, string id, string type) : Node(yylineno, type),  id(id){};
+    IdNode(int yylineno, string id, string type, string var) : Node(yylineno, type, var),  id(id){};
     string print_Node() override{
         return type;
     };

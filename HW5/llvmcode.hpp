@@ -7,14 +7,14 @@ class LlvmCodeHandler{
 public:
     CodeBuffer codeBuffer;
     int RegNum = 0;
-    stack<string> if_labels;
-    stack<string> while_labels;
+    stack<string> cont_labels;
+    stack<string> break_labels;
 
     LlvmCodeHandler()=default;
     std::string freshVar();
-    void handle_binop(NumVarNode* res_exp, const NumVarNode* L_exp, const NumVarNode* R_exp, const std::string op);
-    void handle_relop(BoolVarNode* res_exp, const NumVarNode* L_exp, const NumVarNode* R_exp, const string op);
-
-
+    void handle_binop(Node* res_exp, Node* L_exp, Node* R_exp, std::string op);
+    void handle_relop(BoolVarNode* res_exp, Node* L_exp, Node* R_exp, string op);
+    string allocate_var(string type, string id, string assigningVar);
+    string getLlvmType(string type);
 
 };
