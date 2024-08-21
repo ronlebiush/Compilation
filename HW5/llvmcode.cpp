@@ -91,27 +91,58 @@ void LlvmCodeHandler::handle_relop(BoolVarNode* res_exp, Node* L_exp, Node* R_ex
 
 }
 
-string LlvmCodeHandler::allocate_var(string type, string id, string var, int offset, string assigningVar) {
+void LlvmCodeHandler::allocate_var(string type, string id, string assigningVar, string assigningType) {
 
     string llvmtype = getLlvmType(type);
 
-    codeBuffer.emit(var + " = add i32 0, 0");
+    string var = freshVar();
+    symtable.tableStack.top()->addEntry(id, type, symtable.offsetsStack.top()++, var);
+    int offset = symtable.find(id)->offset;
 
     string ptrvar = freshVar();
-    codeBuffer.emit(ptrvar + " = getelementptre i32, i32* " + symtable.rbpvar + ", i32 " + to_string(offset));
-    codeBuffer.emit("store i32 " + var + ", i32* " + ptrvar); //MAKE CASES FOR BYTE
+    codeBuffer.emit(ptrvar + " = getelementptr i32, i32* " + symtable.rbpvar + ", i32 " + to_string(offset));
 
-    if(llvmtype == "INT" || "BYTE")
-        codeBuffer.emit("store " + llvmtype + " 0, " + llvmtype + "* " + var);
-    else if(llvmtype == "BOOL")
-        codeBuffer.emit("store i1 false, i1* " + var);
+    //type id sc
+    if(assigningVar == "")
+        codeBuffer.emit(var + " = add i32 0, 0");
 
-    if(assigningVar != ""){
-        codeBuffer.emit("store " + llvmtype + " " + assigningVar + ", " + llvmtype + "* " + var);
+    //type id assign exp sc
+    else {
+        if(type == "BOOL")
+            codeBuffer.emit(var + " = zext i1 " + assigningVar + " to i32");
+        else if(type == "BYTE")
+            codeBuffer.emit(var + " = zext i8 " + assigningVar + " to i32");
+        else if(type == "INT"){
+            if(assigningType == "BYTE")
+                codeBuffer.emit(var + " = zext i8 " + assigningVar + " to i32");
+            else var = assigningVar;
+        }
+    }
+        codeBuffer.emit("store i32 " + var + ", i32* " + ptrvar);
+}
+
+//id assign exp sc
+void LlvmCodeHandler::change_var_value(string id, string assigningVar, string assigningType){
+
+    string var = freshVar();
+    string ptrvar = freshVar();
+    int offest = symtable.find(id)->offset;
+    codeBuffer.emit(ptrvar + " = getelementptr i32, i32* " + symtable.rbpvar + ", i32 " + to_string(offest));
+
+    if(assigningVar == "BOOL")
+            codeBuffer.emit(var + " = zext i1 " + assigningVar + " to i32");
+    else if(assigningType == "BYTE")
+            codeBuffer.emit(var + " = zext i8 " + assigningVar + " to i32");
+    else if(assigningType == "INT"){
+        if(assigningType == "BYTE")
+            codeBuffer.emit(var + " = zext i8 " + assigningVar + " to i32");
+        else var = assigningVar;
     }
 
-    return var;
+    codeBuffer.emit("store i32 " + var + ", i32* " + ptrvar);
 }
+
+
 
 string LlvmCodeHandler::getLlvmType(string type){
     string llvmtype;

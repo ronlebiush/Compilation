@@ -91,17 +91,11 @@ statement:  type ID SC
                     exit(1);
                     }
 
-                string var = handler.freshVar();
-                symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->type, symtable.offsetsStack.top()++, var);
-                Symtab::Table::Entry* newEntry = symtable.find(((IdNode*)$2)->id);
-                handler.allocate_var(newEntry->type, newEntry->name, newEntry->var, newEntry->offset, "");
-                
-
+                handler.allocate_var($1->type, ((IdNode*)$2)->id, "", "");
             };
 
 statement:  type ID ASSIGN exp SC 
             {   
-
                 Symtab::Table::Entry* entry = symtable.find(((IdNode*)$2)->id);
                 if(entry){
                     output::errorDef($$->lineno, ((IdNode*)$2)->id);
@@ -117,9 +111,7 @@ statement:  type ID ASSIGN exp SC
                     exit(1);
                 }
                 
-                //string var = handler.allocate_var($1->type, ((IdNode*)$2)->id, $4->var);
-
-                //symtable.tableStack.top()->addEntry(((IdNode*)$2)->id, $1->type, symtable.offsetsStack.top()++, var);
+                handler.allocate_var(type1, ((IdNode*)$2)->id, $4->var, type2);
                 };
 
 statement:  ID ASSIGN exp SC
@@ -147,9 +139,7 @@ statement:  ID ASSIGN exp SC
                     exit(1);
                 }
 
-            string llvmtype = handler.getLlvmType($1->type);
-            handler.codeBuffer.emit("store " + llvmtype + " " + $3->var + ", " + llvmtype + "* " + ((IdNode*)$1)->id);
-                
+                handler.change_var_value(entry->name, $3->var, $3->type);                
             };
 
 statement:  call SC {};
@@ -366,8 +356,8 @@ exp:        ID
                     exit(1);
                 }
                 
-                ((IdNode*)$1)->type = entry->type;
-                ((IdNode*)$1)->var = entry->var;
+                $1->type = entry->type;
+                $1->var = entry->var;
                 $$ = $1;
             }
 
@@ -394,20 +384,24 @@ exp:        NUM B
                 handler.codeBuffer.emit($$->var + " = add i8 " + to_string(((NumNode*)$$)->num) + ", 0");
                 }
 
-exp:        STRING
+exp:        STRING // HAVE TO DO SOMETHING WEIRD WITH GLOBAL VAR
             {
                 $$ = $1;
-                }
+            }
 
 exp :       TRUE
             {
+                $1->var = handler.freshVar();
+                handler.codeBuffer.emit($1->var + " = add i1 1, 0");
                 $$ = $1;
-                };
+            };
 
 exp:        FALSE
             {
+                $1->var = handler.freshVar();
+                handler.codeBuffer.emit($1->var + " = add i1 0, 0");
                 $$ = $1;
-                }
+            }
 
 exp:        NOT exp
             {
@@ -418,7 +412,7 @@ exp:        NOT exp
                 }
 
                 $$ = $2;
-                }
+            }
 
 exp:        exp AND exp
             {
