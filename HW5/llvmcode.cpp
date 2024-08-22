@@ -2,8 +2,12 @@
 extern Symtab symtable;
 
 
-std::string LlvmCodeHandler::freshVar(){
+string LlvmCodeHandler::freshVar(){
     return "%var_" + std::to_string(this->RegNum++);
+}
+
+string LlvmCodeHandler::globalFreshVar(){
+    return "@var_" + std::to_string(this->RegNum++);
 }
 
 
@@ -156,4 +160,45 @@ string LlvmCodeHandler::getLlvmType(string type){
         llvmtype = "i8*";
 
     return llvmtype;
+}
+
+void LlvmCodeHandler::startingPrints() {
+
+    codeBuffer.emit("@.DIV_BY_ZERO_ERROR = internal constant [23 x i8] c\"Error division by zero\\00\"");
+    codeBuffer.emit("define void @check_division(i32) {");
+    codeBuffer.emit("%valid = icmp eq i32 %0, 0");
+    codeBuffer.emit("br i1 %valid, label %ILLEGAL, label %LEGAL");
+    codeBuffer.emit("ILLEGAL:");
+    codeBuffer.emit("call void @print(i8* getelementptr([23 x i8], [23 x i8]* @.DIV_BY_ZERO_ERROR, i32 0, i32 0))");
+    codeBuffer.emit("call void @exit(i32 0)");
+    codeBuffer.emit("ret void");
+    codeBuffer.emit("LEGAL:");
+    codeBuffer.emit("ret void");
+    codeBuffer.emit("}");
+
+    codeBuffer.emit("declare i32 @printf(i8*, ...)");
+    codeBuffer.emit("declare void @exit(i32)");
+    codeBuffer.emit("declare i32 @scanf(i8*, ...)");
+    codeBuffer.emit("@.int_specifier = constant [4 x i8] c\"%d\\0A\\00\"");
+    codeBuffer.emit("@.str_specifier = constant [4 x i8] c\"%s\\0A\\00\"");
+
+
+    codeBuffer.emit("define void @print(i8*){");
+    codeBuffer.emit("call i32 (i8*, ...) @printf(i8* getelementptr([4 x i8], [4 x i8]* @.str_specifier, i32 0, i32 0), i8* %0)");
+    codeBuffer.emit("ret void");
+    codeBuffer.emit("}");
+
+    codeBuffer.emit("define void @printi(i32){");
+    codeBuffer.emit("%format_ptr = getelementptr [4 x i8], [4 x i8]* @.intFormat, i32 0, i32 0");
+    codeBuffer.emit("call i32 (i8*, ...) @printf(i8* getelementptr([4 x i8], [4 x i8]* @.intFormat, i32 0, i32 0), i32 %0)");
+    codeBuffer.emit("ret void");
+    codeBuffer.emit("}");
+
+    codeBuffer.emit("define i32 @readi(i32) {");
+    codeBuffer.emit("%ret_val = alloca i32");
+    codeBuffer.emit("%spec_ptr = getelementptr [3 x i8], [3 x i8]* @.int_specifier_scan, i32 0, i32 0");
+    codeBuffer.emit("call i32 (i8*, ...) @scanf(i8* %spec_ptr, i32* %ret_val)");
+    codeBuffer.emit("%val = load i32, i32* %ret_val");
+    codeBuffer.emit("ret i32 %val");
+    codeBuffer.emit("}");
 }

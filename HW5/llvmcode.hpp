@@ -12,11 +12,13 @@ public:
     stack<string> break_labels;
 
     LlvmCodeHandler()=default;
-    std::string freshVar();
+    string freshVar();
+    string globalFreshVar();
     void handle_binop(Node* res_exp, Node* L_exp, Node* R_exp, std::string op);
     void handle_relop(BoolVarNode* res_exp, Node* L_exp, Node* R_exp, string op);
     void allocate_var(string type, string id, string assigningVar, string assigningType);
     void change_var_value(string id, string assigningVar, string assigningType);
     string getLlvmType(string type);
+    void startingPrints();
 
 };

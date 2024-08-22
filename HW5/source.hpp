@@ -42,10 +42,10 @@ class Symtab
             Entry(string name, string type, int offset, string funcArg, string var) : name(name), type(type), offset(offset), funcArg(funcArg), var(var) {};
             void printEntry() const
             {
-                if(this->funcArg != ""){
+                /*if(this->funcArg != ""){
                     output::printID(name, offset, output::makeFunctionType(funcArg, type));
                 }
-                else output::printID(name, offset, type);
+                else output::printID(name, offset, type);*/
             };
         };
 
@@ -177,6 +177,12 @@ class IdNode : public Node {
     string print_Node() override{
         return type;
     };
+};
+
+class StringNode : public Node {
+    public:
+    string str;
+    StringNode(int yylineno, string str, string type, string var) : Node(yylineno, type, var), str(str){};
 };
 
 

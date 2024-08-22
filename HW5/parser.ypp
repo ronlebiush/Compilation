@@ -16,7 +16,7 @@
 
     void closeScope(){
         if(!symtable.tableStack.empty()){
-                output::endScope();
+                //output::endScope();
                 symtable.tableStack.top()->printTable();
                 symtable.tableStack.top()->deleteTable();
                 symtable.tableStack.pop();
@@ -150,7 +150,7 @@ statement:  RETURN SC { handler.codeBuffer.emit("ret i32 0"); };
 
 statement:  IF openScopeMarker LPAREN boolcheck RPAREN statement CloseScopeMarker
             {
-
+                handler.codeBuffer.emit("br label %" + ((BoolVarNode*)$4)->falselab);
                 handler.codeBuffer.emit(((BoolVarNode*)$4)->falselab + ":");
                 //handler.codeBuffer.emit(handler.if_labels.top() + ":"); // why was this needed?
                 //handler.if_labels.pop();
@@ -162,6 +162,7 @@ statement:  IF openScopeMarker LPAREN boolcheck RPAREN statement CloseScopeMarke
 
 statement:    IF openScopeMarker LPAREN boolcheck RPAREN statement CloseScopeMarker ELSE skipMarker {handler.codeBuffer.emit(((BoolVarNode*)$4)->falselab + ":");} openScopeMarker statement CloseScopeMarker
             {
+                handler.codeBuffer.emit("br label %" + $9->next);
                 handler.codeBuffer.emit($9->next + ":");
             };
 
@@ -203,7 +204,12 @@ boolcheck:  exp
                 string truelab = handler.codeBuffer.freshLabel();
                 string falselab = handler.codeBuffer.freshLabel();
 
-                handler.codeBuffer.emit("br i1 " + ((BoolVarNode*)$1)->var + " label %" + truelab + ", label %" + falselab);
+                string branchVar = handler.freshVar();
+
+                if(dynamic_cast<IdNode*>($1))
+                    handler.codeBuffer.emit(branchVar + " = trunc i32 " + $1->var + " to i1");
+
+                handler.codeBuffer.emit("br i1 " + branchVar + ", label %" + truelab + ", label %" + falselab);
                 handler.codeBuffer.emit(truelab + ":");
                 //handler.if_labels.push(falselab);
 
@@ -254,6 +260,7 @@ statement:  CONTINUE SC
 
 call:       ID LPAREN exp RPAREN 
             {
+                
                 if(((IdNode*)$1)->id == "print"){
                     if($3->type != "STRING"){
                         output::errorPrototypeMismatch($$->lineno, "print", "STRING");
@@ -262,6 +269,7 @@ call:       ID LPAREN exp RPAREN
                     }
                     $$ = new Node($$->lineno, "VOID");
                     allocatedNodes.push_back($$);
+                    handler.codeBuffer.emit("call void @print(i8* " +  $3->var + ")");
                 }
                 else if(((IdNode*)$1)->id == "printi"){
                     if($3->type != "INT" && $3->type != "BYTE"){
@@ -269,6 +277,13 @@ call:       ID LPAREN exp RPAREN
                         cleanUpNodes();
                         exit(1);
                     }
+                    string inputVar = handler.freshVar();
+                    if($3->type == "BYTE")
+                        handler.codeBuffer.emit(inputVar + " = zext i8 " + $3->var + " to i32"); 
+                    else handler.codeBuffer.emit(inputVar + " = add i32 " + $3->var + ", 0"); 
+
+                    handler.codeBuffer.emit("call void @printi(i32 " + inputVar + ")");
+
                     $$ = new Node($$->lineno, "VOID");
                     allocatedNodes.push_back($$);
                 }
@@ -278,6 +293,8 @@ call:       ID LPAREN exp RPAREN
                         cleanUpNodes();
                         exit(1);
                     }
+
+                    handler.codeBuffer.emit("call void @readi(i32 " + $3->var + ")");
                     $$ = new NumNode($$->lineno, 0, "INT", "temp");
                     allocatedNodes.push_back($$);
                 }
@@ -384,8 +401,13 @@ exp:        NUM B
                 handler.codeBuffer.emit($$->var + " = add i8 " + to_string(((NumNode*)$$)->num) + ", 0");
                 }
 
-exp:        STRING // HAVE TO DO SOMETHING WEIRD WITH GLOBAL VAR
+exp:        STRING
             {
+                $1->var = handler.globalFreshVar();
+                handler.codeBuffer.emitGlobal($1->var + " = constant [" + to_string(((StringNode*)$1)->str.length()) + " x i8] c" + ((StringNode*)$1)->str + "\\00\"");
+                string varptr = handler.freshVar();         //$1->var.replace(0, 1, "%");
+                handler.codeBuffer.emit(varptr + " = getelementptr [" + to_string(((StringNode*)$1)->str.length()) + " x i8], " + "[" + to_string(((StringNode*)$1)->str.length()) + " x i8]* " + $1->var + ", i32 0, i32 0");
+                $1->var = varptr;
                 $$ = $1;
             }
 
@@ -423,7 +445,7 @@ exp:        exp AND exp
                 }
 
                 $$ = $2;
-                }
+            }
 
 exp:        exp OR exp
             {
@@ -434,7 +456,7 @@ exp:        exp OR exp
                 }
 
                 $$ = $2;
-                }
+            }
 
 exp:        exp RELATIONAL exp
             {
@@ -470,18 +492,6 @@ exp:        LPAREN type RPAREN exp
                     exit(1);
                 }
 
-                string expType;
-
-                /*if(dynamic_cast<IdNode*>($4)){
-                    Symtab::Table::Entry* entry = symtable.find(((IdNode*)$4)->id);
-                    entry->type = $2->print_Node();
-                    expType = entry->type;
-                }
-                else {
-                    $4->type = $2->print_Node();
-                    expType = $4->type;
-                }*/
-
                 $4->type = $2->print_Node();
 
                 $$ = $4;
@@ -492,14 +502,15 @@ exp:        LPAREN type RPAREN exp
 
 int main() {
 
+    handler.startingPrints();
+    handler.codeBuffer.printGlobalBuffer();
     handler.codeBuffer.emit("define i32 @main(){");
-    handler.codeBuffer.emit("declare i32 @printf(i8*,...)");
-    handler.codeBuffer.emit("declare void @exit(i32)");
-    handler.codeBuffer.emit("declare i32 @scanf(i8*,...)");
+
     symtable.rbpvar = handler.freshVar();
     handler.codeBuffer.emit(symtable.rbpvar + " = alloca i32, i32 50");
 
-    int ret_val = yyparse(); 
+
+    yyparse(); 
 
     closeScope();
     cleanUpNodes();
@@ -508,7 +519,7 @@ int main() {
     handler.codeBuffer.emit("}");
     handler.codeBuffer.printCodeBuffer();
 
-    return ret_val;
+    return 0;
 } 
 
 int yyerror(const char* s)

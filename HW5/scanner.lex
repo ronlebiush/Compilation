@@ -69,7 +69,7 @@ comment \/\/[^\n\r]*
 "0"                         {yylval = new NumNode(yylineno, stoi(yytext), "INT", "");allocatedNodes.push_back(yylval); return NUM;}
 {nonzero}{digit}*          	{yylval = new NumNode(yylineno, stoi(yytext), "INT", "");allocatedNodes.push_back(yylval); return NUM;}
 {comment}                   ;
-(\"([^\n\r\"\\]|\\[rnt"\\])+\")     {yylval = new Node(yylineno, "STRING");allocatedNodes.push_back(yylval); return STRING;}
+(\"([^\n\r\"\\]|\\[rnt"\\])+\")     {yylval = new StringNode(yylineno, yytext, "STRING", "");allocatedNodes.push_back(yylval); return STRING;}
 .                                   {output::errorLex(yylineno); exit(0);};
 
 %%
