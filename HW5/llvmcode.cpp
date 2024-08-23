@@ -33,22 +33,34 @@ void LlvmCodeHandler::handle_binop(Node* res_exp, Node* L_exp, Node* R_exp, std:
     else if (op == "-") {
         llvm_op = "sub";
     }
-    codeBuffer.emit(res_exp->var + " = " + llvm_op + " i32 " + L_exp->var + ", " + R_exp->var); //var3 add i32 var1, var2
 
-    
-    /* Check overflow */
-    /* No need for Int_t type since already we use i32 in llvm */
-    if (res_exp->type == "BYTE") {
-        string new_new_var = freshVar();
-        codeBuffer.emit(new_new_var + " = " + "and " + "i32 " + res_exp->var + ", " + "255");
-        res_exp->var = new_new_var;
+    //adjusting sizes
+    string L_input = freshVar();
+    string R_input = freshVar();
+    if(res_exp->type == "INT"){
+        if(L_exp->type == "BYTE" && !dynamic_cast<IdNode*>(L_exp))
+            codeBuffer.emit(L_input + " = zext i8 " + L_exp->var + " to i32"); 
+        else codeBuffer.emit(L_input + " = add i32 " + L_exp->var + ", 0"); 
+        if(R_exp->type == "BYTE" && !dynamic_cast<IdNode*>(R_exp))
+            codeBuffer.emit(R_input + " = zext i8 " + R_exp->var + " to i32"); 
+        else codeBuffer.emit(R_input + " = add i32 " + R_exp->var + ", 0"); 
+
+    codeBuffer.emit(res_exp->var + " = " + llvm_op + " i32 " + L_input + ", " + R_input); //var3 add i32 var1, var2
     }
-
-
+    else {
+        if(L_exp->type == "BYTE" && dynamic_cast<IdNode*>(L_exp))
+            codeBuffer.emit(L_input + " = trunc i32 " + L_exp->var + " to i8"); 
+        else codeBuffer.emit(L_input + " = add i8 " + L_exp->var + ", 0"); 
+        if(R_exp->type == "BYTE" && dynamic_cast<IdNode*>(R_exp))
+            codeBuffer.emit(R_input + " = trunc i32 " + R_exp->var + " to i8"); 
+        else codeBuffer.emit(R_input + " = add i8 " + R_exp->var + ", 0"); 
+        
+        codeBuffer.emit(res_exp->var + " = " + llvm_op + " i8 " + L_input + ", " + R_input);
+    }
 }
 
 
-void LlvmCodeHandler::handle_relop(BoolVarNode* res_exp, Node* L_exp, Node* R_exp, string op){ 
+void LlvmCodeHandler::handle_relop(Node* res_exp, Node* L_exp, Node* R_exp, string op){ 
     string llvm_relop = "";
     bool sign;
     if (op == "=="){
@@ -95,7 +107,7 @@ void LlvmCodeHandler::handle_relop(BoolVarNode* res_exp, Node* L_exp, Node* R_ex
 
 }
 
-void LlvmCodeHandler::allocate_var(string type, string id, string assigningVar, string assigningType) {
+void LlvmCodeHandler::allocate_var(string type, string id, Node* assigningExp) {
 
     string llvmtype = getLlvmType(type);
 
@@ -107,43 +119,41 @@ void LlvmCodeHandler::allocate_var(string type, string id, string assigningVar, 
     codeBuffer.emit(ptrvar + " = getelementptr i32, i32* " + symtable.rbpvar + ", i32 " + to_string(offset));
 
     //type id sc
-    if(assigningVar == "")
+    if(assigningExp->var == "")
         codeBuffer.emit(var + " = add i32 0, 0");
 
     //type id assign exp sc
     else {
         if(type == "BOOL")
-            codeBuffer.emit(var + " = zext i1 " + assigningVar + " to i32");
+            codeBuffer.emit(var + " = zext i1 " + assigningExp->var + " to i32");
         else if(type == "BYTE")
-            codeBuffer.emit(var + " = zext i8 " + assigningVar + " to i32");
+            codeBuffer.emit(var + " = zext i8 " + assigningExp->var + " to i32");
         else if(type == "INT"){
-            if(assigningType == "BYTE")
-                codeBuffer.emit(var + " = zext i8 " + assigningVar + " to i32");
-            else var = assigningVar;
+            if(assigningExp->type == "BYTE" && !dynamic_cast<IdNode*>(assigningExp))
+                codeBuffer.emit(var + " = zext i8 " + assigningExp->var + " to i32");
+            else var = assigningExp->var;
         }
     }
         codeBuffer.emit("store i32 " + var + ", i32* " + ptrvar);
+        symtable.find(id)->var = ptrvar;
 }
 
 //id assign exp sc
-void LlvmCodeHandler::change_var_value(string id, string assigningVar, string assigningType){
+void LlvmCodeHandler::change_var_value(string id, Node* assigningExp){
 
     string var = freshVar();
     string ptrvar = freshVar();
-    int offest = symtable.find(id)->offset;
-    codeBuffer.emit(ptrvar + " = getelementptr i32, i32* " + symtable.rbpvar + ", i32 " + to_string(offest));
+    //int offest = symtable.find(id)->offset;
+    //codeBuffer.emit(ptrvar + " = getelementptr i32, i32* " + symtable.rbpvar + ", i32 " + to_string(offest));
 
-    if(assigningVar == "BOOL")
-            codeBuffer.emit(var + " = zext i1 " + assigningVar + " to i32");
-    else if(assigningType == "BYTE")
-            codeBuffer.emit(var + " = zext i8 " + assigningVar + " to i32");
-    else if(assigningType == "INT"){
-        if(assigningType == "BYTE")
-            codeBuffer.emit(var + " = zext i8 " + assigningVar + " to i32");
-        else var = assigningVar;
-    }
+    if(assigningExp->var == "BOOL" && !dynamic_cast<IdNode*>(assigningExp))
+            codeBuffer.emit(var + " = zext i1 " + assigningExp->var + " to i32");
+    else if(assigningExp->type == "BYTE" && !dynamic_cast<IdNode*>(assigningExp))
+            codeBuffer.emit(var + " = zext i8 " + assigningExp->var + " to i32");
+    else var = assigningExp->var;
 
-    codeBuffer.emit("store i32 " + var + ", i32* " + ptrvar);
+    codeBuffer.emit("store i32 " + var + ", i32* " + symtable.find(id)->var);
+
 }
 
 
@@ -164,6 +174,7 @@ string LlvmCodeHandler::getLlvmType(string type){
 
 void LlvmCodeHandler::startingPrints() {
 
+    codeBuffer.emit("@.intFormat = internal constant [4 x i8] c\"%d\\0A\\00\"");
     codeBuffer.emit("@.DIV_BY_ZERO_ERROR = internal constant [23 x i8] c\"Error division by zero\\00\"");
     codeBuffer.emit("define void @check_division(i32) {");
     codeBuffer.emit("%valid = icmp eq i32 %0, 0");
@@ -179,12 +190,13 @@ void LlvmCodeHandler::startingPrints() {
     codeBuffer.emit("declare i32 @printf(i8*, ...)");
     codeBuffer.emit("declare void @exit(i32)");
     codeBuffer.emit("declare i32 @scanf(i8*, ...)");
-    codeBuffer.emit("@.int_specifier = constant [4 x i8] c\"%d\\0A\\00\"");
-    codeBuffer.emit("@.str_specifier = constant [4 x i8] c\"%s\\0A\\00\"");
+    //codeBuffer.emit("@.int_spec = constant [4 x i8] c\"%d\\0A\\00\"");
+    codeBuffer.emit("@.str_spec = constant [4 x i8] c\"%s\\0A\\00\"");
+    codeBuffer.emit("@.int_spec_2 = constant [3 x i8] c\"%d\\00\"");
 
 
     codeBuffer.emit("define void @print(i8*){");
-    codeBuffer.emit("call i32 (i8*, ...) @printf(i8* getelementptr([4 x i8], [4 x i8]* @.str_specifier, i32 0, i32 0), i8* %0)");
+    codeBuffer.emit("call i32 (i8*, ...) @printf(i8* getelementptr([4 x i8], [4 x i8]* @.str_spec, i32 0, i32 0), i8* %0)");
     codeBuffer.emit("ret void");
     codeBuffer.emit("}");
 
@@ -196,7 +208,7 @@ void LlvmCodeHandler::startingPrints() {
 
     codeBuffer.emit("define i32 @readi(i32) {");
     codeBuffer.emit("%ret_val = alloca i32");
-    codeBuffer.emit("%spec_ptr = getelementptr [3 x i8], [3 x i8]* @.int_specifier_scan, i32 0, i32 0");
+    codeBuffer.emit("%spec_ptr = getelementptr [3 x i8], [3 x i8]* @.int_spec_2, i32 0, i32 0");
     codeBuffer.emit("call i32 (i8*, ...) @scanf(i8* %spec_ptr, i32* %ret_val)");
     codeBuffer.emit("%val = load i32, i32* %ret_val");
     codeBuffer.emit("ret i32 %val");

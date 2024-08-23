@@ -91,7 +91,7 @@ statement:  type ID SC
                     exit(1);
                     }
 
-                handler.allocate_var($1->type, ((IdNode*)$2)->id, "", "");
+                handler.allocate_var($1->type, ((IdNode*)$2)->id, new Node(0));
             };
 
 statement:  type ID ASSIGN exp SC 
@@ -111,7 +111,7 @@ statement:  type ID ASSIGN exp SC
                     exit(1);
                 }
                 
-                handler.allocate_var(type1, ((IdNode*)$2)->id, $4->var, type2);
+                handler.allocate_var(type1, ((IdNode*)$2)->id, $4);
                 };
 
 statement:  ID ASSIGN exp SC
@@ -139,7 +139,7 @@ statement:  ID ASSIGN exp SC
                     exit(1);
                 }
 
-                handler.change_var_value(entry->name, $3->var, $3->type);                
+                handler.change_var_value(entry->name, $3);                
             };
 
 statement:  call SC {};
@@ -185,7 +185,11 @@ statement:  WHILE openScopeMarker whileCheck LPAREN boolcheck RPAREN statement
                 closeScope();
 
                 handler.codeBuffer.emit("br label %" + $3->next); //go back to start
+
+                handler.codeBuffer.emit("br label %" + ((BoolVarNode*)$5)->falselab);
                 handler.codeBuffer.emit(((BoolVarNode*)$5)->falselab + ":"); //where while goes if exp wrong
+
+                handler.codeBuffer.emit("br label %" + handler.break_labels.top());
                 handler.codeBuffer.emit(handler.break_labels.top() + ":");
                 handler.break_labels.pop();
             };
@@ -204,12 +208,14 @@ boolcheck:  exp
                 string truelab = handler.codeBuffer.freshLabel();
                 string falselab = handler.codeBuffer.freshLabel();
 
-                string branchVar = handler.freshVar();
 
-                if(dynamic_cast<IdNode*>($1))
+                if(dynamic_cast<IdNode*>($1)){
+                    string branchVar = handler.freshVar();
                     handler.codeBuffer.emit(branchVar + " = trunc i32 " + $1->var + " to i1");
+                    $1->var = branchVar;
+                }
 
-                handler.codeBuffer.emit("br i1 " + branchVar + ", label %" + truelab + ", label %" + falselab);
+                handler.codeBuffer.emit("br i1 " + $1->var + ", label %" + truelab + ", label %" + falselab);
                 handler.codeBuffer.emit(truelab + ":");
                 //handler.if_labels.push(falselab);
 
@@ -228,10 +234,12 @@ whileCheck: %empty
                 handler.cont_labels.push(contlabel);
                 handler.break_labels.push(breaklabel);
 
+                handler.codeBuffer.emit("br label %" + contlabel);
                 handler.codeBuffer.emit(contlabel + ":");
 
                 $$ = new Node(0);
                 $$->next = handler.codeBuffer.freshLabel();
+                handler.codeBuffer.emit("br label %" + $$->next);
                 handler.codeBuffer.emit($$->next + ":");
             }
 
@@ -278,7 +286,7 @@ call:       ID LPAREN exp RPAREN
                         exit(1);
                     }
                     string inputVar = handler.freshVar();
-                    if($3->type == "BYTE")
+                    if($3->type == "BYTE" && !dynamic_cast<IdNode*>($3))
                         handler.codeBuffer.emit(inputVar + " = zext i8 " + $3->var + " to i32"); 
                     else handler.codeBuffer.emit(inputVar + " = add i32 " + $3->var + ", 0"); 
 
@@ -353,7 +361,7 @@ exp:        exp BINOP exp
 
                 $$ = new Node($$->lineno, "INT", handler.freshVar());
                 allocatedNodes.push_back($$);
-                if($1->print_Node() == "BYTE" && $3->type == "BYTE"){
+                if($1->type == "BYTE" && $3->type == "BYTE"){
                     $$->type = "BYTE";
                 }
                 handler.handle_binop($$, $1, $3, $2->type);
@@ -373,8 +381,11 @@ exp:        ID
                     exit(1);
                 }
                 
+                string loadedVar = handler.freshVar();
+                handler.codeBuffer.emit(loadedVar + " = load i32, i32* " + entry->var);
+
                 $1->type = entry->type;
-                $1->var = entry->var;
+                $1->var = loadedVar;
                 $$ = $1;
             }
 
@@ -403,6 +414,7 @@ exp:        NUM B
 
 exp:        STRING
             {
+                ((StringNode*)$1)->str.pop_back();
                 $1->var = handler.globalFreshVar();
                 handler.codeBuffer.emitGlobal($1->var + " = constant [" + to_string(((StringNode*)$1)->str.length()) + " x i8] c" + ((StringNode*)$1)->str + "\\00\"");
                 string varptr = handler.freshVar();         //$1->var.replace(0, 1, "%");
@@ -433,7 +445,17 @@ exp:        NOT exp
                     exit(1);
                 }
 
+
+                if(dynamic_cast<IdNode*>($2)){  //if id
+                    string toTrunc = handler.freshVar();
+                    handler.codeBuffer.emit(toTrunc + " = trunc i32 " + $2->var + " to i1");
+                    $2->var = toTrunc;
+                }
+
+                string newVar = handler.freshVar();
+                handler.codeBuffer.emit(newVar + " = sub i1 1, " + $2->var);
                 $$ = $2;
+                $$->var = newVar;
             }
 
 exp:        exp AND exp
@@ -444,7 +466,21 @@ exp:        exp AND exp
                     exit(1);
                 }
 
+                if(dynamic_cast<IdNode*>($1)){  //if id
+                    string toTrunc1 = handler.freshVar();
+                    handler.codeBuffer.emit(toTrunc1 + " = trunc i32 " + $2->var + " to i1");
+                    $1->var = toTrunc1;
+                }
+                if(dynamic_cast<IdNode*>($3)){  //if id
+                    string toTrunc2 = handler.freshVar();
+                    handler.codeBuffer.emit(toTrunc2 + " = trunc i32 " + $2->var + " to i1");
+                    $3->var = toTrunc2;
+                }
+
+                string newVar = handler.freshVar();
+                handler.codeBuffer.emit(newVar + " = and i1 " + $1->var + ", " + $3->var);
                 $$ = $2;
+                $$->var = newVar;
             }
 
 exp:        exp OR exp
@@ -455,7 +491,21 @@ exp:        exp OR exp
                     exit(1);
                 }
 
+                if(dynamic_cast<IdNode*>($1)){  //if id
+                    string toTrunc1 = handler.freshVar();
+                    handler.codeBuffer.emit(toTrunc1 + " = trunc i32 " + $2->var + " to i1");
+                    $1->var = toTrunc1;
+                }
+                if(dynamic_cast<IdNode*>($3)){  //if id
+                    string toTrunc2 = handler.freshVar();
+                    handler.codeBuffer.emit(toTrunc2 + " = trunc i32 " + $2->var + " to i1");
+                    $3->var = toTrunc2;
+                }
+
+                string newVar = handler.freshVar();
+                handler.codeBuffer.emit(newVar + " = or i1 " + $1->var + ", " + $3->var);
                 $$ = $2;
+                $$->var = newVar;
             }
 
 exp:        exp RELATIONAL exp
@@ -468,7 +518,7 @@ exp:        exp RELATIONAL exp
 
                 $$ = new BoolVarNode($$->lineno, "BOOL", handler.freshVar());
                 allocatedNodes.push_back($$);
-                handler.handle_relop((BoolVarNode*)$$, $1, $3, $2->type);
+                handler.handle_relop($$, $1, $3, $2->type);
             }
             |
             exp EQUAL exp
@@ -479,9 +529,9 @@ exp:        exp RELATIONAL exp
                     exit(1);
                 }
 
-                //$$ = new BoolVarNode($$->lineno, "BOOL", handler.freshVar());
+                $$ = new BoolVarNode($$->lineno, "BOOL", handler.freshVar());
                 allocatedNodes.push_back($$);
-            
+                handler.handle_relop($$, $1, $3, $2->type);
                 }
 
 exp:        LPAREN type RPAREN exp
@@ -503,7 +553,6 @@ exp:        LPAREN type RPAREN exp
 int main() {
 
     handler.startingPrints();
-    handler.codeBuffer.printGlobalBuffer();
     handler.codeBuffer.emit("define i32 @main(){");
 
     symtable.rbpvar = handler.freshVar();
@@ -517,6 +566,7 @@ int main() {
 
     handler.codeBuffer.emit("ret i32 0");
     handler.codeBuffer.emit("}");
+    handler.codeBuffer.printGlobalBuffer();
     handler.codeBuffer.printCodeBuffer();
 
     return 0;
