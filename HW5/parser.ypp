@@ -302,8 +302,9 @@ call:       ID LPAREN exp RPAREN
                         exit(1);
                     }
 
-                    handler.codeBuffer.emit("call void @readi(i32 " + $3->var + ")");
-                    $$ = new NumNode($$->lineno, 0, "INT", "temp");
+                    string retVal = handler.freshVar();
+                    handler.codeBuffer.emit(retVal + " = call i32 @readi(i32 " + $3->var + ")");
+                    $$ = new NumNode($$->lineno, 0, "INT", retVal);
                     allocatedNodes.push_back($$);
                 }
 
@@ -343,7 +344,7 @@ exp:        exp BINOP exp
                     exit(1);
                 }
 
-                $$ = new Node($$->lineno, "INT", handler.freshVar());
+                $$ = new Node($2->lineno, "INT", handler.freshVar());
                 allocatedNodes.push_back($$);
                 if($1->type == "BYTE" && $3->type == "BYTE"){
                     $$->type = "BYTE";
@@ -359,7 +360,7 @@ exp:        exp BINOP exp
                     exit(1);
                 }
 
-                $$ = new Node($$->lineno, "INT", handler.freshVar());
+                $$ = new Node($2->lineno, "INT", handler.freshVar());
                 allocatedNodes.push_back($$);
                 if($1->type == "BYTE" && $3->type == "BYTE"){
                     $$->type = "BYTE";
@@ -396,7 +397,7 @@ exp:        call
 
 exp:        NUM
             {
-                $$ = new NumNode($$->lineno, ((NumNode*)$1)->num, $1->type, handler.freshVar());
+                $$ = new NumNode($1->lineno, ((NumNode*)$1)->num, $1->type, handler.freshVar());
                 handler.codeBuffer.emit($$->var + " = add i32 " + to_string(((NumNode*)$$)->num) + ", 0");
             }
 
@@ -408,7 +409,7 @@ exp:        NUM B
                     exit(1);
                 }
                 
-                $$ = new NumNode($$->lineno, ((NumNode*)$1)->num, "BYTE", handler.freshVar());
+                $$ = new NumNode($1->lineno, ((NumNode*)$1)->num, "BYTE", handler.freshVar());
                 handler.codeBuffer.emit($$->var + " = add i8 " + to_string(((NumNode*)$$)->num) + ", 0");
                 }
 
@@ -427,14 +428,14 @@ exp :       TRUE
             {
                 $1->var = handler.freshVar();
                 handler.codeBuffer.emit($1->var + " = add i1 1, 0");
-                $$ = $1;
+                $$ = new BoolVarNode($1->lineno, "BOOL", $1->var);
             };
 
 exp:        FALSE
             {
                 $1->var = handler.freshVar();
                 handler.codeBuffer.emit($1->var + " = add i1 0, 0");
-                $$ = $1;
+                $$ = new BoolVarNode($1->lineno, "BOOL", $1->var);
             }
 
 exp:        NOT exp
@@ -454,59 +455,88 @@ exp:        NOT exp
 
                 string newVar = handler.freshVar();
                 handler.codeBuffer.emit(newVar + " = sub i1 1, " + $2->var);
-                $$ = $2;
-                $$->var = newVar;
+
+                $$ = new BoolVarNode($1->lineno, "BOOL", newVar);
             }
 
-exp:        exp AND exp
+exp:        exp AND {handler.handleOrAnd($1); handler.codeBuffer.emit(((BoolVarNode*)$1)->truelab + ":");} exp
             {
-                if($1->print_Node() != "BOOL" || $3->print_Node() != "BOOL"){
+                if($4->type != "BOOL"){
                     output::errorMismatch($$->lineno);
-                    cleanUpNodes();
                     exit(1);
                 }
+                
+                if(dynamic_cast<IdNode*>($4)){  //if id
+                    string toTrunc = handler.freshVar();
+                    handler.codeBuffer.emit(toTrunc + " = trunc i32 " + $4->var + " to i1");
+                    $4->var = toTrunc;
+                }
 
-                if(dynamic_cast<IdNode*>($1)){  //if id
-                    string toTrunc1 = handler.freshVar();
-                    handler.codeBuffer.emit(toTrunc1 + " = trunc i32 " + $2->var + " to i1");
-                    $1->var = toTrunc1;
-                }
-                if(dynamic_cast<IdNode*>($3)){  //if id
-                    string toTrunc2 = handler.freshVar();
-                    handler.codeBuffer.emit(toTrunc2 + " = trunc i32 " + $2->var + " to i1");
-                    $3->var = toTrunc2;
-                }
+                string endLabel = handler.codeBuffer.freshLabel();
+
+                string stupidLabel = handler.codeBuffer.freshLabel();
+                handler.codeBuffer.emit("br label %" + stupidLabel);
+                handler.codeBuffer.emit(stupidLabel + ":");
+
+                string var1 = handler.freshVar();
+                handler.codeBuffer.emit(var1 + " = add i1 " + $4->var + ", 0");
+                handler.codeBuffer.emit("br label %" + endLabel);
+
+                string var2 = handler.freshVar();
+                handler.codeBuffer.emit(((BoolVarNode*)$1)->falselab + ":");
+                handler.codeBuffer.emit(var2 + " = add i1 " + $1->var + ", 0");
+                handler.codeBuffer.emit("br label %" + endLabel);
 
                 string newVar = handler.freshVar();
-                handler.codeBuffer.emit(newVar + " = and i1 " + $1->var + ", " + $3->var);
-                $$ = $2;
-                $$->var = newVar;
+                handler.codeBuffer.emit(endLabel + ":");
+                handler.codeBuffer.emit(newVar + " = phi i1 [" + var1 + ", %" + stupidLabel + "], [" + var2 + ", %" + ((BoolVarNode*)$1)->falselab + "]");
+
+
+                $$ = new BoolVarNode($$->lineno, "BOOL", newVar);
             }
 
-exp:        exp OR exp
+
+exp:        exp OR {handler.handleOrAnd($1); handler.codeBuffer.emit(((BoolVarNode*)$1)->falselab + ":");} exp 
             {
-                if($1->print_Node() != "BOOL" || $3->print_Node() != "BOOL"){
+                
+                if($4->type != "BOOL"){
                     output::errorMismatch($$->lineno);
-                    cleanUpNodes();
                     exit(1);
                 }
+                
+                if(dynamic_cast<IdNode*>($4)){  //if id
+                    string toTrunc = handler.freshVar();
+                    handler.codeBuffer.emit(toTrunc + " = trunc i32 " + $4->var + " to i1");
+                    $4->var = toTrunc;
+                }
 
-                if(dynamic_cast<IdNode*>($1)){  //if id
-                    string toTrunc1 = handler.freshVar();
-                    handler.codeBuffer.emit(toTrunc1 + " = trunc i32 " + $2->var + " to i1");
-                    $1->var = toTrunc1;
-                }
-                if(dynamic_cast<IdNode*>($3)){  //if id
-                    string toTrunc2 = handler.freshVar();
-                    handler.codeBuffer.emit(toTrunc2 + " = trunc i32 " + $2->var + " to i1");
-                    $3->var = toTrunc2;
-                }
+                string endLabel = handler.codeBuffer.freshLabel();
+
+                string stupidLabel = handler.codeBuffer.freshLabel();
+                handler.codeBuffer.emit("br label %" + stupidLabel);
+                handler.codeBuffer.emit(stupidLabel + ":");
+
+                string var1 = handler.freshVar();
+                handler.codeBuffer.emit(var1 + " = add i1 " + $4->var + ", 0");
+                handler.codeBuffer.emit("br label %" + endLabel);
+
+                string var2 = handler.freshVar();
+                handler.codeBuffer.emit(((BoolVarNode*)$1)->truelab + ":");
+                handler.codeBuffer.emit(var2 + " = add i1 " + $1->var + ", 0");
+                handler.codeBuffer.emit("br label %" + endLabel);
 
                 string newVar = handler.freshVar();
-                handler.codeBuffer.emit(newVar + " = or i1 " + $1->var + ", " + $3->var);
-                $$ = $2;
-                $$->var = newVar;
+                handler.codeBuffer.emit(endLabel + ":");
+                //if  (BoolVarNode*)$4 then $1->falselab = $4->next 
+                handler.codeBuffer.emit(newVar + " = phi i1 [" + var1 + ", %" + stupidLabel + "], [" + var2 + ", %" + ((BoolVarNode*)$1)->truelab + "]");
+
+
+                $$ = new BoolVarNode($$->lineno, "BOOL", newVar);
             }
+
+
+//B-> b1 or b2 {B.false = B2.false B.true = b2.true }
+
 
 exp:        exp RELATIONAL exp
             {
@@ -532,7 +562,7 @@ exp:        exp RELATIONAL exp
                 $$ = new BoolVarNode($$->lineno, "BOOL", handler.freshVar());
                 allocatedNodes.push_back($$);
                 handler.handle_relop($$, $1, $3, $2->type);
-                }
+            }
 
 exp:        LPAREN type RPAREN exp
             {
@@ -542,9 +572,16 @@ exp:        LPAREN type RPAREN exp
                     exit(1);
                 }
 
-                $4->type = $2->print_Node();
+                string changedVar = handler.freshVar();
+                if($2->type == "INT" && $4->type == "BYTE" && !dynamic_cast<IdNode*>($4))
+                    handler.codeBuffer.emit(changedVar + " = zext i8 " + $4->var + " to i32");
+                else if($2->type == "BYTE" && $4->type == "INT")
+                    handler.codeBuffer.emit(changedVar + " = trunc i32 " + $4->var + " to i8");
+
+                $4->type = $2->type;
 
                 $$ = $4;
+                $$->var = changedVar;
             }
 
 

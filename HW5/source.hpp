@@ -173,6 +173,8 @@ class NumNode : public Node {
 class IdNode : public Node {
     public:
     string id;
+    string truelab;
+    string falselab;
     IdNode(int yylineno, string id, string type, string var) : Node(yylineno, type, var),  id(id){};
     string print_Node() override{
         return type;

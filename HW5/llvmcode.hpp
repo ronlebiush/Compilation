@@ -18,6 +18,7 @@ public:
     void handle_relop(Node* res_exp, Node* L_exp, Node* R_exp, string op);
     void allocate_var(string type, string id, Node* assigningExp);
     void change_var_value(string id, Node* assigningExp);
+    void handleOrAnd(Node* L_exp);
     string getLlvmType(string type);
     void startingPrints();
 

@@ -25,7 +25,13 @@ void LlvmCodeHandler::handle_binop(Node* res_exp, Node* L_exp, Node* R_exp, std:
             llvm_op = "udiv";
         }
         // Check devision by zero
-        codeBuffer.emit("call void @check_division(i32 " + R_exp->var + ")");
+        string R_input = freshVar();
+        if(R_exp->type == "BYTE" && !dynamic_cast<IdNode*>(R_exp))
+            codeBuffer.emit(R_input + " = zext i8 " + R_exp->var + " to i32"); 
+        else codeBuffer.emit(R_input + " = add i32 " + R_exp->var + ", 0"); 
+            
+        codeBuffer.emit("call void @check_division(i32 " + R_input + ")");
+        
     }
     else if (op == "+") {
         llvm_op = "add";
@@ -94,10 +100,17 @@ void LlvmCodeHandler::handle_relop(Node* res_exp, Node* L_exp, Node* R_exp, stri
             llvm_relop = "u" + llvm_relop;
     }
 
-    // std::string relop_start_label = codeBuffer.freshLabel();
-    /* nextlist of exp2 is the start of these operations */
+    string L_input = freshVar();
+    string R_input = freshVar();
+    if(L_exp->type == "BYTE" && !dynamic_cast<IdNode*>(L_exp))
+        codeBuffer.emit(L_input + " = zext i8 " + L_exp->var + " to i32"); 
+    else codeBuffer.emit(L_input + " = add i32 " + L_exp->var + ", 0"); 
+    if(R_exp->type == "BYTE" && !dynamic_cast<IdNode*>(R_exp))
+        codeBuffer.emit(R_input + " = zext i8 " + R_exp->var + " to i32"); 
+    else codeBuffer.emit(R_input + " = add i32 " + R_exp->var + ", 0"); 
+
     res_exp->var = this->freshVar();
-    this->codeBuffer.emit(res_exp->var + " = " + "icmp " + llvm_relop + " i32 " + L_exp->var + ", " + R_exp->var);
+    this->codeBuffer.emit(res_exp->var + " = " + "icmp " + llvm_relop + " i32 " + L_input + ", " + R_input);
 
     //int next_instr = this->codeBuffer.emit("br i1 " + var + ", label @, label @");
 
@@ -146,7 +159,7 @@ void LlvmCodeHandler::change_var_value(string id, Node* assigningExp){
     //int offest = symtable.find(id)->offset;
     //codeBuffer.emit(ptrvar + " = getelementptr i32, i32* " + symtable.rbpvar + ", i32 " + to_string(offest));
 
-    if(assigningExp->var == "BOOL" && !dynamic_cast<IdNode*>(assigningExp))
+    if(assigningExp->type == "BOOL" && !dynamic_cast<IdNode*>(assigningExp))
             codeBuffer.emit(var + " = zext i1 " + assigningExp->var + " to i32");
     else if(assigningExp->type == "BYTE" && !dynamic_cast<IdNode*>(assigningExp))
             codeBuffer.emit(var + " = zext i8 " + assigningExp->var + " to i32");
@@ -154,6 +167,60 @@ void LlvmCodeHandler::change_var_value(string id, Node* assigningExp){
 
     codeBuffer.emit("store i32 " + var + ", i32* " + symtable.find(id)->var);
 
+}
+
+void LlvmCodeHandler::handleOrAnd(Node* L_exp){
+    
+    if(L_exp->type != "BOOL"){
+        return;
+    }
+    
+    if(dynamic_cast<IdNode*>(L_exp)){  //if id
+        string toTrunc = freshVar();
+        codeBuffer.emit(toTrunc + " = trunc i32 " + L_exp->var + " to i1");
+        L_exp->var = toTrunc;
+    }
+
+    string truelab = codeBuffer.freshLabel();
+    string falselab = codeBuffer.freshLabel();
+    ((BoolVarNode*)L_exp)->truelab = truelab;
+    ((BoolVarNode*)L_exp)->falselab = falselab;
+
+    codeBuffer.emit("br i1 " + L_exp->var + ", label %" + truelab + ", label %" + falselab);
+    
+    // string skipIfThis;
+    // string normalCommand;
+    // if(op == "and"){
+    //     skipIfThis = "0";
+    //     normalCommand = "and i1 " + var1 + ", " + var2;
+    // }
+    // else {
+    //     skipIfThis = "1";
+    //     normalCommand = "or i1 " + var1 + ", " + var2;
+    // }
+
+    // string normalVar = freshVar();
+    // codeBuffer.emit(normalVar + " = " + normalCommand);
+
+    // string checkVar = freshVar();
+    // codeBuffer.emit(checkVar + " = icmp eq i1 " + var1 + ", " + skipIfThis);
+
+    // string skipLabel = codeBuffer.freshLabel();
+    // string normalLabel = codeBuffer.freshLabel();
+    // string phiLabel = codeBuffer.freshLabel();
+    // codeBuffer.emit("br i1 " + checkVar + ", label %" + skipLabel + ", label %" + normalLabel);
+
+    // codeBuffer.emit(skipLabel + ":");
+    // codeBuffer.emit("br label %" + phiLabel);
+
+    // codeBuffer.emit(normalLabel + ":");
+    // codeBuffer.emit("br label %" + phiLabel);
+
+    // string newVar = freshVar();
+    // codeBuffer.emit(phiLabel + ":");
+    // codeBuffer.emit(newVar + " = phi i1 [" + skipIfThis + ", %" + skipLabel + "], [" + normalVar + ", %" + normalLabel + "]");
+    
+    // return newVar;
 }
 
 

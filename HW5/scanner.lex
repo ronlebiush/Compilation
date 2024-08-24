@@ -44,8 +44,8 @@ comment \/\/[^\n\r]*
 "byte"                      {yylval = new Node(yylineno, "BYTE");allocatedNodes.push_back(yylval);return BYTE;}
 "b"                         {yylval = new Node(yylineno, "B");allocatedNodes.push_back(yylval); return B;}
 "bool"                      {yylval = new Node(yylineno, "BOOL");allocatedNodes.push_back(yylval);return BOOL;}
-"and"                       {yylval = new Node(yylineno, "BOOL");allocatedNodes.push_back(yylval); return AND;}
-"or"                        {yylval = new Node(yylineno, "BOOL");allocatedNodes.push_back(yylval); return OR;}
+"and"                       {yylval = new Node(yylineno, yytext);allocatedNodes.push_back(yylval); return AND;}
+"or"                        {yylval = new Node(yylineno, yytext);allocatedNodes.push_back(yylval); return OR;}
 "not"                       {yylval = new Node(yylineno, "BOOL");allocatedNodes.push_back(yylval); return NOT;}
 "true"                      {yylval = new Node(yylineno, "BOOL");allocatedNodes.push_back(yylval); return TRUE;}
 "false"                     {yylval = new Node(yylineno, "BOOL");allocatedNodes.push_back(yylval); return FALSE;}
